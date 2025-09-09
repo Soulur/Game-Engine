@@ -1,0 +1,15 @@
+# Build artifacts
+
+# IDE files
+.vscode/
+
+# Dependency
+/vendor/
+/build/
+/Assets/objs/
+/Assets/textures/
+
+
+# Log and temp files
+*.log
+imgui.ini
