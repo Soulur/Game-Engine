@@ -1,5 +1,7 @@
 #include "src/Core/LayerStack.h"
 
+#include <algorithm>
+
 namespace Mc {
 
 	LayerStack::~LayerStack()

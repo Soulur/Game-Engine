@@ -639,7 +639,22 @@ namespace Mc
 	}
 
 	template <>
+	void Scene::OnComponentAdded<LightComponent>(Entity entity, LightComponent &component)
+	{
+	}
+
+	template <>
+	void Scene::OnComponentAdded<SphereRendererComponent>(Entity entity, SphereRendererComponent &component)
+	{
+	}
+
+	template <>
 	void Scene::OnComponentAdded<ModelRendererComponent>(Entity entity, ModelRendererComponent &component)
+	{
+	}
+
+	template <>
+	void Scene::OnComponentAdded<HdrSkyboxComponent>(Entity entity, HdrSkyboxComponent &component)
 	{
 	}
 

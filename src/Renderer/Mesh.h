@@ -33,7 +33,7 @@ namespace Mc
         void DrawInstanced(Ref<Shader> &shader, uint32_t instanceCount);
 
         void SetMaterial(Ref<Material> &material);
-        Ref<Material> GetMaterial() { return m_Material; }
+        Ref<Material> &GetMaterial() { return m_Material; }
 
         Ref<VertexArray> GetVertexArray() { return m_VertexArray; }
         Ref<IndexBuffer> GetIndexBuffer() { return m_IndexBuffer; }

@@ -1,5 +1,7 @@
 #include "ProjectBrowserPanel.h"
 
+#include <algorithm>
+
 #include <imgui.h>
 
 namespace Mc {

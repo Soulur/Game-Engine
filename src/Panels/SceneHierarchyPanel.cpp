@@ -24,6 +24,83 @@
 
 namespace Mc {
 
+	namespace Utils
+	{
+		void PbrUiRenderer(Ref<Material> &material)
+		{
+			ImGui::Text("PBR");
+			{
+				glm::vec4 albedo = material->GetAlbedo();
+				ImGui::ColorEdit4("Albedo", glm::value_ptr(albedo));
+				material->SetAlbedo(albedo);
+			}
+
+			{
+				auto roughness = material->GetRoughness();
+				ImGui::DragFloat("Roughness", &roughness, 0.1f, 0.0f, 1.0f);
+				material->SetRoughness(roughness);
+			}
+
+			{
+				auto metallic = material->GetMetallic();
+				ImGui::DragFloat("Metallic", &metallic, 0.1f, 0.0f, 1.0f);
+				material->SetMetallic(metallic);
+			}
+
+			{
+				auto ao = material->GetAO();
+				ImGui::DragFloat("AO", &ao, 0.1f, 0.0f, 1.0f);
+				material->SetAO(ao);
+			}
+
+			{
+				auto emissive = material->GetEmissive();
+				ImGui::ColorEdit3("Emissive", glm::value_ptr(emissive));
+				material->SetEmissive(emissive);
+			}
+
+			ImGui::Text("Albedo");
+			ImGui::Text("Normal");
+			ImGui::Text("Metallic");
+			ImGui::Text("Roughness");
+			ImGui::Text("AmbientOcclusion");
+			ImGui::Text("Emissive");
+			ImGui::Text("Height");
+
+			for (int i = 0; i < (int)TextureType::Count; i++)
+			{
+				ImGui::PushID(i);
+
+				Ref<Texture2D> texture = material->GetTexture((TextureType)i);
+
+				std::string buttonLabel;
+				if (texture && !texture->GetPath().empty())
+				{
+					buttonLabel = texture->GetPath();
+				}
+				else
+				{
+					switch ((TextureType)i)
+					{
+						case TextureType::Albedo: buttonLabel = "Albedo (None)"; break;
+						case TextureType::Normal: buttonLabel = "Normal (None)"; break;
+						case TextureType::Metallic: buttonLabel = "Metallic (None)"; break;
+						case TextureType::Roughness: buttonLabel = "Roughness (None)";break;
+						case TextureType::AmbientOcclusion: buttonLabel = "AO (None)"; break;
+						case TextureType::Emissive: buttonLabel = "Emissive (None)"; break;
+						case TextureType::Height: buttonLabel = "Height (None)"; break;
+						default: buttonLabel = "Texture (None)"; break;
+					}
+				}
+
+				if (ImGui::Button(buttonLabel.c_str(), ImVec2(ImGui::GetWindowSize().x, 40)))
+				{
+				}
+				ImGui::PopID();
+			}
+		}
+	}
+
 	extern const std::filesystem::path g_AssetPath;
 
 	// 支持文件类型
@@ -61,7 +138,8 @@ namespace Mc {
 				m_SelectionContext = {};
 
 			// Right-click on blank space
-			if (ImGui::BeginPopupContextWindow(0, 1, false))
+			if (ImGui::BeginPopupContextWindow(0, ImGuiPopupFlags_MouseButtonRight))
+			// if (ImGui::BeginPopupContextWindow(0, 1, false))
 			{
 				if (ImGui::MenuItem ("Create Empty Entity"))
 					m_Context->CreateEntity("Empty Entity");
@@ -123,72 +201,82 @@ namespace Mc {
 		}
 	}
 
-	static void DrawVec3Control(const std::string& label, glm::vec3& values, float resetValue = 0.0f, float columnWidth = 100.0f)
+	static void DrawVec3Control(const std::string &label, glm::vec3 &values, float resetValue = 0.0f, float columnWidth = 100.0f)
 	{
-		ImGuiIO& io = ImGui::GetIO();
+		ImGuiIO &io = ImGui::GetIO();
 		auto boldFont = io.Fonts->Fonts[0];
 
 		ImGui::PushID(label.c_str());
 
-		ImGui::Columns(2);
-		ImGui::SetColumnWidth(0, columnWidth);
-		ImGui::Text(label.c_str());
-		ImGui::NextColumn();
+		if (ImGui::BeginTable("##VectorsTable", 2, ImGuiTableFlags_NoBordersInBody))
+		{
+			ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, columnWidth);
+			ImGui::TableSetupColumn("Values");
 
-		ImGui::PushMultiItemsWidths(3, ImGui::CalcItemWidth());
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0, 0 });
+			// 切换到第一列，并绘制标签
+			ImGui::TableNextColumn();
+			ImGui::Text(label.c_str());
 
-		float lineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
-		ImVec2 buttonSize = { lineHeight + 3.0f, lineHeight };
+			// 切换到第二列，并绘制输入控件
+			ImGui::TableNextColumn();
+			ImGui::PushMultiItemsWidths(4, ImGui::GetContentRegionAvail().x);
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 0});
 
-		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.8f, 0.1f, 0.15f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.9f, 0.2f, 0.2f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.8f, 0.1f, 0.15f, 1.0f });
-		ImGui::PushFont(boldFont);
-		if (ImGui::Button("X", buttonSize))
-			values.x = resetValue;
-		ImGui::PopFont();
-		ImGui::PopStyleColor(3);
+			float lineHeight = ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y * 2.0f;
+			ImVec2 buttonSize = {lineHeight + 3.0f, lineHeight};
 
-		ImGui::SameLine();
-		ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f");
-		ImGui::PopItemWidth();
-		ImGui::SameLine();
+			// X value
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.9f, 0.2f, 0.2f, 1.0f});
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
+			ImGui::PushFont(boldFont);
+			if (ImGui::Button("X", buttonSize))
+				values.x = resetValue;
+			ImGui::PopFont();
+			ImGui::PopStyleColor(3);
 
-		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.2f, 0.7f, 0.2f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.3f, 0.8f, 0.3f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.2f, 0.7f, 0.2f, 1.0f });
-		ImGui::PushFont(boldFont);
-		if (ImGui::Button("Y", buttonSize))
-			values.y = resetValue;
-		ImGui::PopFont();
-		ImGui::PopStyleColor(3);
+			ImGui::SameLine();
+			ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f");
+			ImGui::PopItemWidth();
+			ImGui::SameLine();
 
-		ImGui::SameLine();
-		ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f");
-		ImGui::PopItemWidth();
-		ImGui::SameLine();
+			// Y value
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.2f, 0.7f, 0.2f, 1.0f});
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.3f, 0.8f, 0.3f, 1.0f});
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.2f, 0.7f, 0.2f, 1.0f});
+			ImGui::PushFont(boldFont);
+			if (ImGui::Button("Y", buttonSize))
+				values.y = resetValue;
+			ImGui::PopFont();
+			ImGui::PopStyleColor(3);
 
-		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.1f, 0.25f, 0.8f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.2f, 0.35f, 0.9f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.1f, 0.25f, 0.8f, 1.0f });
-		ImGui::PushFont(boldFont);
-		if (ImGui::Button("Z", buttonSize))
-			values.z = resetValue;
-		ImGui::PopFont();
-		ImGui::PopStyleColor(3);
+			ImGui::SameLine();
+			ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f");
+			ImGui::PopItemWidth();
+			ImGui::SameLine();
 
-		ImGui::SameLine();
-		ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
-		ImGui::PopItemWidth();
+			// Z value
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.1f, 0.25f, 0.8f, 1.0f});
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.2f, 0.35f, 0.9f, 1.0f});
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.1f, 0.25f, 0.8f, 1.0f});
+			ImGui::PushFont(boldFont);
+			if (ImGui::Button("Z", buttonSize))
+				values.z = resetValue;
+			ImGui::PopFont();
+			ImGui::PopStyleColor(3);
 
-		ImGui::PopStyleVar();
+			ImGui::SameLine();
+			ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
+			ImGui::PopItemWidth();
 
-		ImGui::Columns(1);
+			ImGui::PopStyleVar();
+
+			ImGui::EndTable();
+		}
 
 		ImGui::PopID();
 	}
-	
+
 	template<typename T, typename UIFunction>
 	static void DrawComponent(const std::string& name, Entity entity, UIFunction uiFunction)
 	{
@@ -199,7 +287,7 @@ namespace Mc {
 			ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
 
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 4, 4 });
-			float lineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
+			float lineHeight = ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y * 2.0f;
 			ImGui::Separator();
 			bool open = ImGui::TreeNodeEx((void*)typeid(T).hash_code(), treeNodeFlags, name.c_str());
 			ImGui::PopStyleVar();
@@ -413,65 +501,13 @@ namespace Mc {
 			}
 		});
 
-		DrawComponent<SphereRendererComponent>("Sphere Renderer", entity, [](auto &component) 
+		DrawComponent<SphereRendererComponent>("Sphere Renderer", entity, [](auto &component)
 		{
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
 			
 			ImGui::DragFloat("Tiling Texture", &component.TilingFactor, 0.1f, 0.0f, 100.0f);
 
-			ImGui::Text("PBR");
-			{
-				glm::vec4 albedo = component.Material->GetAlbedo();
-				ImGui::ColorEdit4("Albedo", glm::value_ptr(albedo));
-				component.Material->SetAlbedo(albedo);
-			}
-
-			{
-				auto roughness = component.Material->GetRoughness();
-				ImGui::DragFloat("Roughness", &roughness, 0.1f, 0.0f, 1.0f);
-				component.Material->SetRoughness(roughness);
-			}
-
-			{
-				auto metallic = component.Material->GetMetallic();
-				ImGui::DragFloat("Metallic", &metallic, 0.1f, 0.0f, 1.0f);
-				component.Material->SetMetallic(metallic);
-			}
-
-			{
-				auto ao = component.Material->GetAO();
-				ImGui::DragFloat("AO", &ao, 0.1f, 0.0f, 1.0f);
-				component.Material->SetAO(ao);
-			}
-
-			{
-				auto emissive = component.Material->GetEmissive();
-				ImGui::ColorEdit3("Emissive", glm::value_ptr(emissive));
-				component.Material->SetEmissive(emissive);
-			}
-
-			// Ref<Texture2D> Albedo = 			component.Material->GetTexture(TextureType::Albedo);
-			// Ref<Texture2D> Normal = 			component.Material->GetTexture(TextureType::Normal);
-			// Ref<Texture2D> Metallic = 			component.Material->GetTexture(TextureType::Metallic);
-			// Ref<Texture2D> Roughness = 			component.Material->GetTexture(TextureType::Roughness);
-			// Ref<Texture2D> AmbientOcclusion = 	component.Material->GetTexture(TextureType::AmbientOcclusion);
-			// Ref<Texture2D> Emissive = 			component.Material->GetTexture(TextureType::Emissive);
-			// Ref<Texture2D> Height = 			component.Material->GetTexture(TextureType::Height);
-
-			ImGui::Text("Albedo");
-			 if (ImGui::Button(component.Material->GetTexture(TextureType::Albedo)->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-			ImGui::Text("Normal");
-			 if (ImGui::Button(component.Material->GetTexture(TextureType::Normal)->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-			ImGui::Text("Metallic");
-			 if (ImGui::Button(component.Material->GetTexture(TextureType::Metallic)->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-			ImGui::Text("Roughness");
-			 if (ImGui::Button(component.Material->GetTexture(TextureType::Roughness)->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-			ImGui::Text("AmbientOcclusion");
-			 if (ImGui::Button(component.Material->GetTexture(TextureType::AmbientOcclusion)->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-			ImGui::Text("Emissive");
-			 if (ImGui::Button(component.Material->GetTexture(TextureType::Emissive)->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-			ImGui::Text("Height");
-			 if (ImGui::Button(component.Material->GetTexture(TextureType::Height)->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
+			Utils::PbrUiRenderer(component.Material); 
 		});
 
 		DrawComponent<ModelRendererComponent>("Model Renderer", entity, [](auto &component)
@@ -516,6 +552,7 @@ namespace Mc {
 			{
 				ImGui::BeginChild("Meshs", ImVec2(0, 200), true, ImGuiWindowFlags_NoScrollbar); // 创建一个子区域
 				if (!component.ModelPath.empty() && component.Model != nullptr)
+				{
 					for (auto &obj : component.Model->GetMeshs())
 					{
 						if (ImGui::Button(obj->GetName().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)))
@@ -523,6 +560,7 @@ namespace Mc {
 							component.CurrentMesh = obj;
 						}
 					}
+				}
 				ImGui::EndChild();
 			}
 
@@ -531,8 +569,6 @@ namespace Mc {
 			if (component.CurrentMesh != nullptr)
 			{
 				ImGui::Text(component.CurrentMesh->GetName().c_str());
-
-				// ImGui::PushItemWidth(-1);
 
 				if (ImGui::Button("Add Materials"))
 					ImGui::OpenPopup("AddMaterials");
@@ -553,43 +589,7 @@ namespace Mc {
 
 				ImGui::Text(component.CurrentMesh->GetMaterial()->GetName().c_str());
 
-				glm::vec4 albedo = component.CurrentMesh->GetMaterial()->GetAlbedo();
-				ImGui::ColorEdit4("Albedo", glm::value_ptr(albedo));
-
-				auto roughness = component.CurrentMesh->GetMaterial()->GetRoughness();
-				ImGui::DragFloat("Roughness", &roughness);
-
-				auto metallic = component.CurrentMesh->GetMaterial()->GetMetallic();
-				ImGui::DragFloat("Metallic", &metallic);
-
-				auto ao = component.CurrentMesh->GetMaterial()->GetAO();
-				ImGui::DragFloat("AO", &ao);
-
-				auto emissive = component.CurrentMesh->GetMaterial()->GetEmissive();
-				ImGui::ColorEdit3("Emissive", glm::value_ptr(emissive));
-
-				Ref<Texture2D> Albedo = 			component.CurrentMesh->GetMaterial()->GetTexture(TextureType::Albedo);
-				Ref<Texture2D> Normal = 			component.CurrentMesh->GetMaterial()->GetTexture(TextureType::Normal);
-				Ref<Texture2D> Metallic = 			component.CurrentMesh->GetMaterial()->GetTexture(TextureType::Metallic);
-				Ref<Texture2D> Roughness = 			component.CurrentMesh->GetMaterial()->GetTexture(TextureType::Roughness);
-				Ref<Texture2D> AmbientOcclusion = 	component.CurrentMesh->GetMaterial()->GetTexture(TextureType::AmbientOcclusion);
-				Ref<Texture2D> Emissive = 			component.CurrentMesh->GetMaterial()->GetTexture(TextureType::Emissive);
-				Ref<Texture2D> Height = 			component.CurrentMesh->GetMaterial()->GetTexture(TextureType::Height);
-
-				ImGui::Text("Albedo");
-				if (ImGui::Button(Albedo->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-				ImGui::Text("Normal");
-				if (ImGui::Button(Normal->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-				ImGui::Text("Metallic");
-				if (ImGui::Button(Metallic->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-				ImGui::Text("Roughness");
-				if (ImGui::Button(Roughness->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-				ImGui::Text("AmbientOcclusion");
-				if (ImGui::Button(AmbientOcclusion->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-				ImGui::Text("Emissive");
-				if (ImGui::Button(Emissive->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
-				ImGui::Text("Height");
-				if (ImGui::Button(Height->GetPath().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)));
+				Utils::PbrUiRenderer(component.CurrentMesh->GetMaterial());
 			}
 			ImGui::EndChild();
 		});
