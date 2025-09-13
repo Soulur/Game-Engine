@@ -7,22 +7,106 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # ============================================
 find_package(OpenGL REQUIRED)
 
-# 设置Assimp的安装路径
-set(Assimp_DIR ${PROJECT_SOURCE_DIR}/vendor/Assimp/lib/cmake/assimp-5.4)
-find_package(Assimp REQUIRED)
+# FetchContent
+include(FetchContent)
+FetchContent_Declare(
+  assimp
+  GIT_REPOSITORY https://github.com/assimp/assimp.git
+  GIT_TAG        master
+      CMAKE_ARGS
+    -DCMAKE_CXX_FLAGS="-Wno-error"
+    -DCMAKE_CXX_FLAGS="-Wno-error=unused-variable"
+    -DASSIMP_BUILD_NO_WERROR=ON
+)
 
-# 检查是否找到了Assimp
-if(Assimp_FOUND)
-    message(STATUS "Found Assimp: ${Assimp_DIR}")
-else()
-    message(FATAL_ERROR "Could not find Assimp")
-endif()
+FetchContent_Declare(
+  entt
+  GIT_REPOSITORY https://github.com/skypjack/entt.git
+  GIT_TAG        v3.15.0
+)
 
-# 在顶层 CMakeLists.txt 中设置全局包含路径
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+FetchContent_Declare(
+  glfw
+  GIT_REPOSITORY https://github.com/glfw/glfw.git
+  GIT_TAG        3.3.8
+)
+
+FetchContent_Declare(
+  glm
+  GIT_REPOSITORY https://github.com/g-truc/glm.git
+  GIT_TAG        1.0.1
+)
+
+FetchContent_Declare(
+  imgui
+  GIT_REPOSITORY https://github.com/ocornut/imgui.git
+  GIT_TAG        v1.92.2-docking
+)
+
+FetchContent_Declare(
+  imguizmo
+  GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git
+  GIT_TAG        master
+)
+
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG        v1.10.0
+)
+
+FetchContent_Declare(
+  yaml-cpp
+  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+  GIT_TAG        master
+    CMAKE_ARGS
+    -DCMAKE_CXX_FLAGS="-Wno-error"
+    -DCMAKE_CXX_FLAGS="-Wno-error=unused-variable"
+    -DASSIMP_BUILD_NO_WERROR=ON
+)
+
+FetchContent_MakeAvailable(assimp entt glfw glm imgui imguizmo spdlog yaml-cpp)
+
+# Add glad
+add_library(glad STATIC ${PROJECT_SOURCE_DIR}/vendor/glad/src/glad.c)
+target_include_directories(glad PUBLIC ${PROJECT_SOURCE_DIR}/vendor/glad/include)
+
+# Add stb_image
+add_library(stb_image STATIC ${PROJECT_SOURCE_DIR}/vendor/stb_image/stb_image.cpp)
+target_include_directories(stb_image PUBLIC ${PROJECT_SOURCE_DIR}/vendor/stb_image)
+
+# Add ImGui 库
+add_library(imgui STATIC
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+)
+target_include_directories(imgui PUBLIC
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
+)
+target_link_libraries(imgui PUBLIC glad glfw)
+
+# Add ImGuizmo 库
+add_library(ImGuizmo STATIC ${imguizmo_SOURCE_DIR}/ImGuizmo.cpp)
+target_include_directories(ImGuizmo PUBLIC 
+    ${imguizmo_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}
+)
+target_link_libraries(ImGuizmo PUBLIC imgui) # 链接到我们自己创建的 ImGui 库
+
+# Add Entt
+add_library(entt INTERFACE)
+target_include_directories(entt INTERFACE ${entt_SOURCE_DIR}/src)
 
 # =============================================
 
+# 在顶层 CMakeLists.txt 中设置全局包含路径
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 # Our Project
 add_executable(${PROJECT_NAME}
     src/main.cpp
@@ -180,78 +264,50 @@ add_executable(${PROJECT_NAME}
     # ------------------------------------------
 
 )
+# =============================================
 
-# ================    Add     ================
-# Add spdlog
-set(SPDLOG_SOURCE_DIR ${PROJECT_SOURCE_DIR}/vendor/spdlog)
-add_subdirectory(${SPDLOG_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/vendor/spdlog)
+target_link_libraries(${PROJECT_NAME} 
+  PUBLIC
+    OpenGL::GL
 
-# Add glad
-add_library(glad STATIC ${PROJECT_SOURCE_DIR}/vendor/glad/src/glad.c)
-target_include_directories(glad PUBLIC ${PROJECT_SOURCE_DIR}/vendor/glad/include)
+    glad
+    stb_image
 
-# Add glfw
-set(GLFW_SOURCE_DIR ${PROJECT_SOURCE_DIR}/vendor/glfw)
-add_subdirectory(${GLFW_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/vendor/glfw)
-
-# Add glm
-set(GLM_SOURCE_DIR ${PROJECT_SOURCE_DIR}/vendor/glm)
-add_subdirectory(${GLM_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/vendor/glm)
-
-# Add stb_image
-add_library(stb_image STATIC ${PROJECT_SOURCE_DIR}/vendor/stb_image/stb_image.cpp)
-target_include_directories(stb_image PUBLIC ${PROJECT_SOURCE_DIR}/vendor/stb_image)
-
-# Add Imgui
-add_library(imgui STATIC
-    ${PROJECT_SOURCE_DIR}/vendor/imgui/imgui.cpp
-    ${PROJECT_SOURCE_DIR}/vendor/imgui/imgui_demo.cpp
-    ${PROJECT_SOURCE_DIR}/vendor/imgui/imgui_draw.cpp
-    ${PROJECT_SOURCE_DIR}/vendor/imgui/imgui_widgets.cpp
-    ${PROJECT_SOURCE_DIR}/vendor/imgui/examples/imgui_impl_glfw.cpp
-    ${PROJECT_SOURCE_DIR}/vendor/imgui/examples/imgui_impl_opengl3.cpp
-)
-target_include_directories(imgui PUBLIC
-    ${PROJECT_SOURCE_DIR}/vendor/glfw/include
-    ${PROJECT_SOURCE_DIR}/vendor/glad/include
+    imgui
+    ImGuizmo
+    entt
     
-    ${PROJECT_SOURCE_DIR}/vendor/imgui
-    ${PROJECT_SOURCE_DIR}/vendor/imgui/examples
+    
+    # FetchContent_MakeAvailable
+    glm
+    assimp::assimp
+    glfw
+    spdlog::spdlog
+    yaml-cpp
 )
-
-# ImGuizmo
-add_library(ImGuizmo STATIC ${PROJECT_SOURCE_DIR}/vendor/ImGuizmo/ImGuizmo.cpp)
-target_include_directories(ImGuizmo PUBLIC 
-    ${PROJECT_SOURCE_DIR}/vendor/imgui
-    ${PROJECT_SOURCE_DIR}/vendor/ImGuizmo
-)
-
-# Add Entt
-target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/vendor/entt/src)
-
-# Add yam-cpp
-set(YAML_SOURCE_DIR ${PROJECT_SOURCE_DIR}/vendor/yaml-cpp)
-add_subdirectory(${YAML_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/vendor/yaml-cpp)
-
-# ====================== Add ======================
-target_link_libraries(${PROJECT_NAME} PRIVATE spdlog::spdlog)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE OpenGL::GL)
-target_link_libraries(${PROJECT_NAME} PRIVATE assimp::assimp)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE glad)
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE glm)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE stb_image)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE imgui)
-target_link_libraries(${PROJECT_NAME} PRIVATE ImGuizmo)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE yaml-cpp)
 
 # Copy Assets in build
 file(COPY "${CMAKE_SOURCE_DIR}/Assets" DESTINATION "${CMAKE_BINARY_DIR}")
-# assimp dll
-file(COPY "${CMAKE_SOURCE_DIR}/vendor/Assimp/bin/" DESTINATION "${CMAKE_BINARY_DIR}")
+
+# 自动将所有依赖的动态库复制到可执行文件所在的目录
+add_custom_command(
+    TARGET Engine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "$<TARGET_FILE:glad>"
+    "$<TARGET_FILE_DIR:Engine>"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "$<TARGET_FILE:glfw>"
+    "$<TARGET_FILE_DIR:Engine>"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "$<TARGET_FILE:assimp>"
+    "$<TARGET_FILE_DIR:Engine>"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "$<TARGET_FILE:spdlog>"
+    "$<TARGET_FILE_DIR:Engine>"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "$<TARGET_FILE:yaml-cpp>"
+    "$<TARGET_FILE_DIR:Engine>"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "$<TARGET_FILE:ImGuizmo>"
+    "$<TARGET_FILE_DIR:Engine>"
+)
