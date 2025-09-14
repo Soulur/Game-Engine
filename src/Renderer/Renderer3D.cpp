@@ -235,37 +235,41 @@ namespace Mc
 		std::vector<int> GetMaterialTextureIndices(const Ref<Material> &material)
 		{
 			std::vector<int> indices((int)TextureType::Count, 0);
-			if (material)
+
+			if (!material) return indices;
+
+			auto textures = material->Get();
+
+			for (int textureTypeIndex = 0; textureTypeIndex < (int)TextureType::Count; ++textureTypeIndex)
 			{
-				for (int i = 0; i < (int)TextureType::Count; ++i)
+				TextureType type = (TextureType)textureTypeIndex;
+				const Ref<Texture2D> &texture = textures.at(type);
+
+				if (texture && texture != s_Data.WhiteTexture)
 				{
-					TextureType type = (TextureType)i;
-					auto textures = material->Get();
-					const Ref<Texture2D> &texture = textures.at(type); // .at() 确保索引有效
+					int foundSlotIndex = -1;
 
-					if (texture)
+					for (uint32_t slotIndex = 1; slotIndex < s_Data.TextureSlotIndex; ++slotIndex)
 					{
-						for (uint32_t i = 1; i < s_Data.TextureSlotIndex; i++)
+						if (*s_Data.TextureSlots[slotIndex] == *texture)
 						{
-
-							if (*s_Data.TextureSlots[i] == *texture)
-							{
-								indices[i] = i;
-								break;
-							}
+							foundSlotIndex = slotIndex;
+							break;
 						}
+					}
 
-						if (indices[i] == 0 && texture != s_Data.WhiteTexture)
-						{
-							if (s_Data.TextureSlotIndex >= Renderer3DData::MaxTextureSlots)
-							{
-								Renderer3D::NextBatch();
-							}
+					if (foundSlotIndex != -1)
+					{
+						indices[textureTypeIndex] = foundSlotIndex;
+					}
+					else
+					{
+						if (s_Data.TextureSlotIndex >= Renderer3DData::MaxTextureSlots)
+							Renderer3D::NextBatch();
 
-							indices[i] = s_Data.TextureSlotIndex;
-							s_Data.TextureSlots[s_Data.TextureSlotIndex] = texture;
-							s_Data.TextureSlotIndex++;
-						}
+						indices[textureTypeIndex] = s_Data.TextureSlotIndex;
+						s_Data.TextureSlots[s_Data.TextureSlotIndex] = texture;
+						s_Data.TextureSlotIndex++;
 					}
 				}
 			}

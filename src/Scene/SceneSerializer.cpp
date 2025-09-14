@@ -2,6 +2,7 @@
 
 #include "src/Scene/Entity.h"
 #include "src/Scene/Components.h"
+#include "src/Renderer/Manager/ModelManager.h"
 
 #include <fstream>
 
@@ -170,19 +171,106 @@ namespace Mc
 			out << YAML::EndMap; // CameraComponent
 		}
 
+		if (entity.HasComponent<HdrSkyboxComponent>())
+		{
+			out << YAML::Key << "HdrSkyboxComponent";
+			out << YAML::BeginMap; // HdrSkyboxComponent
+
+			auto &hdrSkyboxComponent = entity.GetComponent<HdrSkyboxComponent>();
+			if (!hdrSkyboxComponent.Path.empty())
+				out << YAML::Key << "HdrPath" << YAML::Value << hdrSkyboxComponent.Path;
+
+				out << YAML::EndMap; // HdrSkyboxComponent
+		}
+
+		if (entity.HasComponent<LightComponent>())
+		{
+			out << YAML::Key << "LightComponent";
+			out << YAML::BeginMap; // LightComponent
+
+			auto &lightComponent = entity.GetComponent<LightComponent>();
+			switch (lightComponent.Light.GetType())
+			{
+				case SceneLight::LightType::Point:
+				{
+					out << YAML::Key << "LightType" << YAML::Value << (int)SceneLight::LightType::Point;
+					out << YAML::Key << "Radius" << YAML::Value << lightComponent.Light.GetRadius();
+					break;
+				}
+				case SceneLight::LightType::Directional:
+				{
+					out << YAML::Key << "LightType" << YAML::Value << (int)SceneLight::LightType::Directional;
+					break;
+				}
+				case SceneLight::LightType::Spot:
+				{
+					out << YAML::Key << "LightType" << YAML::Value << (int)SceneLight::LightType::Spot;
+					out << YAML::Key << "Radius" << YAML::Value << lightComponent.Light.GetRadius();
+					out << YAML::Key << "InnerConeAngleDegrees" << YAML::Value << lightComponent.Light.GetInnerConeAngleDegrees();
+					out << YAML::Key << "OuterConeAngleDegrees" << YAML::Value << lightComponent.Light.GetOuterConeAngleDegrees();
+					break;
+				}
+			}
+
+			out << YAML::Key << "Color" << YAML::Value << lightComponent.Color;
+			out << YAML::Key << "Intensity" << YAML::Value << lightComponent.Intensity;
+			out << YAML::Key << "CastsShadows" << YAML::Value << lightComponent.CastsShadows;
+
+			out << YAML::EndMap; // LightComponent
+		}
+
 		if (entity.HasComponent<SphereRendererComponent>())
 		{
 			out << YAML::Key << "SphereRendererComponent";
 			out << YAML::BeginMap; // SpriteRendererComponent
 
 			auto &sphereRendererComponent = entity.GetComponent<SphereRendererComponent>();
-			out << YAML::Key << "Color" << YAML::Value << sphereRendererComponent.Color;
-			if (sphereRendererComponent.Texture)
-				out << YAML::Key << "TexturePath" << YAML::Value << sphereRendererComponent.Texture->GetPath();
+			{
+				out << YAML::Key << "AlbedoValue" << YAML::Value << sphereRendererComponent.Material->GetAlbedo();
+				out << YAML::Key << "AOValue" << YAML::Value << sphereRendererComponent.Material->GetAO();
+				out << YAML::Key << "EmissiveValue" << YAML::Value << sphereRendererComponent.Material->GetEmissive();
+				out << YAML::Key << "MetallicValue" << YAML::Value << sphereRendererComponent.Material->GetMetallic();
+				out << YAML::Key << "RoughnessValue" << YAML::Value << sphereRendererComponent.Material->GetRoughness();
 
+				std::vector<std::string> arr = {"AlbedoMap", "NormalMap", "MetallicMap", "RoughnessMap", "AmbientOcclusionMap", "EmissiveMap", "HeightMap"};
+				for (int i = 0; i < (int)TextureType::Count; i++)
+				{
+					if (sphereRendererComponent.Material->GetTexture((TextureType)i))
+					{
+						out << YAML::Key << arr[i] << YAML::Value << sphereRendererComponent.Material->GetTexture((TextureType)i)->GetPath();
+					}
+				}
+			}
+			out << YAML::Key << "Color" << YAML::Value << sphereRendererComponent.Color;			
 			out << YAML::Key << "TilingFactor" << YAML::Value << sphereRendererComponent.TilingFactor;
 
 			out << YAML::EndMap; // SpriteRendererComponent
+		}
+
+		if (entity.HasComponent<ModelRendererComponent>())
+		{
+			out << YAML::Key << "ModelRendererComponent";
+			out << YAML::BeginMap; // ModelRendererComponent
+
+			auto &modelRendererComponent = entity.GetComponent<ModelRendererComponent>();
+			if (modelRendererComponent.Model)
+			{
+				out << YAML::Key << "ModelPath" << YAML::Value << modelRendererComponent.ModelPath;
+				for (auto &mesh : modelRendererComponent.Model->GetMeshs())
+				{
+					if (!mesh->GetMaterial()->GetName().empty())
+					{
+						LOG_CORE_ERROR("{0}", mesh->GetName());
+						LOG_CORE_ERROR("{0}", mesh->GetMaterial()->GetName());
+						out << YAML::Key << mesh->GetName() << YAML::Value << mesh->GetMaterial()->GetName();
+					}
+				}
+			}
+			out << YAML::Key << "Color" << YAML::Value << modelRendererComponent.Color;
+			out << YAML::Key << "FlipUV" << YAML::Value << modelRendererComponent.FlipUV;
+			out << YAML::Key << "GammaCorrection" << YAML::Value << modelRendererComponent.GammaCorrection;
+
+			out << YAML::EndMap; // ModelRendererComponent
 		}
 
 		out << YAML::EndMap; // Entity
@@ -278,16 +366,103 @@ namespace Mc
 					cc.FixedAspectRatio = cameraComponent["FixedAspectRatio"].as<bool>();
 				}
 
+				auto hdrSkyboxComponent = entity["HdrSkyboxComponent"];
+				if (hdrSkyboxComponent)
+				{
+					auto &src = deserializedEntity.AddComponent<HdrSkyboxComponent>();
+					if (hdrSkyboxComponent["HdrPath"])
+						src.Path = hdrSkyboxComponent["HdrPath"].as<std::string>();
+				}
+
+				auto lightComponent = entity["LightComponent"];
+				if (lightComponent)
+				{
+					auto &src = deserializedEntity.AddComponent<LightComponent>();
+
+					switch (lightComponent["LightType"].as<int>())
+					{
+						case 0:
+						{
+							src.Light.SetType(SceneLight::LightType::Point);
+							src.Light.SetRadius(lightComponent["Radius"].as<float>());
+							break;
+						}
+						case 1:
+						{
+							src.Light.SetType(SceneLight::LightType::Directional);
+							break;
+						}
+						case 2:
+						{
+							src.Light.SetType(SceneLight::LightType::Spot);
+							src.Light.SetRadius(lightComponent["Radius"].as<float>());
+							src.Light.SetInnerConeAngleDegrees(lightComponent["InnerConeAngleDegrees"].as<float>());
+							src.Light.SetOuterConeAngleDegrees(lightComponent["OuterConeAngleDegrees"].as<float>());
+							break;
+						}
+					}
+
+					src.Color = lightComponent["Color"].as<glm::vec3>();
+					src.Intensity = lightComponent["Intensity"].as<float>();
+					src.CastsShadows = lightComponent["CastsShadows"].as<bool>();
+
+					src.Light.SetIntensity(src.Intensity);
+					src.Light.SetCastsShadows(src.CastsShadows);
+				}
+
 				auto sphereRendererComponent = entity["SphereRendererComponent"];
 				if (sphereRendererComponent)
 				{
 					auto &src = deserializedEntity.AddComponent<SphereRendererComponent>();
-					src.Color = sphereRendererComponent["Color"].as<glm::vec4>();
-					if (sphereRendererComponent["TexturePath"])
-						src.Texture = Texture2D::Create(sphereRendererComponent["TexturePath"].as<std::string>());
+					{
+						src.Material->SetAlbedo(sphereRendererComponent[ "AlbedoValue"].as<glm::vec4>());
+						src.Material->SetAO(sphereRendererComponent[ "AOValue"].as<float>());
+						src.Material->SetEmissive(sphereRendererComponent[ "EmissiveValue"].as<glm::vec3>());
+						src.Material->SetMetallic(sphereRendererComponent[ "MetallicValue"].as<float>());
+						src.Material->SetRoughness(sphereRendererComponent[ "RoughnessValue"].as<float>());
 
+						std::vector<std::string> arr = {"AlbedoMap", "NormalMap", "MetallicMap", "RoughnessMap", "AmbientOcclusionMap", "EmissiveMap", "HeightMap"};
+						for (int i = 0; i < (int)TextureType::Count; i++)
+						{
+							if (sphereRendererComponent[arr[i]])
+							{
+								src.Material->SetTexture((TextureType)i, sphereRendererComponent[arr[i]].as<std::string>());
+							}
+						}
+					}
+
+					src.Color = sphereRendererComponent["Color"].as<glm::vec4>();
 					if (sphereRendererComponent["TilingFactor"])
 						src.TilingFactor = sphereRendererComponent["TilingFactor"].as<float>();
+				}
+
+				auto modelRendererComponent = entity["ModelRendererComponent"];
+				if (modelRendererComponent)
+				{
+					auto &src = deserializedEntity.AddComponent<ModelRendererComponent>();
+					if (modelRendererComponent["ModelPath"])
+					{
+						std::string a = modelRendererComponent["ModelPath"].as<std::string>();
+						src.ModelPath = a;
+						src.Model = ModelManager::Get().GetModel(a);
+
+						for (auto &mesh : src.Model->GetMeshs())
+						{
+							if (modelRendererComponent[mesh->GetName()])
+							{
+								std::string materialName = modelRendererComponent[mesh->GetName()].as<std::string>();
+								LOG_CORE_ERROR("{0}", materialName);
+								for (auto & material : src.Model->GetMaterials())
+								{
+									if (material->GetName() == materialName)
+										mesh->SetMaterial(material);
+								}
+							}
+						}
+					}
+					src.Color = modelRendererComponent["Color"].as<glm::vec4>();
+					src.FlipUV = modelRendererComponent["FlipUV"].as<bool>();
+					src.GammaCorrection = modelRendererComponent["GammaCorrection"].as<bool>();
 				}
 			}
 		}

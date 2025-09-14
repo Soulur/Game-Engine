@@ -83,8 +83,6 @@ namespace Mc
 		Ref<Material> Material = MaterialManager::Get().AddMaterial();
 
 		glm::vec4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
-		Ref<Texture2D> Texture;
-		std::string TexturePath;
 		float TilingFactor = 1.0f;
 
 		SphereRendererComponent() = default;

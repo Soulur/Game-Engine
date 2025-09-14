@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28) # FetchContent is available in 3.11+
-project(Engine)
+project(Game-Engine)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -291,23 +291,23 @@ file(COPY "${CMAKE_SOURCE_DIR}/Assets" DESTINATION "${CMAKE_BINARY_DIR}")
 
 # 自动将所有依赖的动态库复制到可执行文件所在的目录
 add_custom_command(
-    TARGET Engine POST_BUILD
+    TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "$<TARGET_FILE:glad>"
-    "$<TARGET_FILE_DIR:Engine>"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "$<TARGET_FILE:glfw>"
-    "$<TARGET_FILE_DIR:Engine>"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "$<TARGET_FILE:assimp>"
-    "$<TARGET_FILE_DIR:Engine>"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "$<TARGET_FILE:spdlog>"
-    "$<TARGET_FILE_DIR:Engine>"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "$<TARGET_FILE:yaml-cpp>"
-    "$<TARGET_FILE_DIR:Engine>"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "$<TARGET_FILE:ImGuizmo>"
-    "$<TARGET_FILE_DIR:Engine>"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
 )
