@@ -45,24 +45,24 @@ namespace Mc
     private:
         std::string path;
         
-        unsigned int captureFBO = 0;
-        unsigned int captureRBO = 0;
+        unsigned int m_CaptureFBO = 0;
+        unsigned int m_CaptureRBO = 0;
 
         Ref<VertexArray> quadArray;
         Ref<VertexArray> cubeArray;
 
-        unsigned int hdrTexture = 0;
-        unsigned int envCubemap = 0;
-        unsigned int irradianceMap = 0;
-        unsigned int prefilterMap = 0;
-        unsigned int brdfLUTMap = 0;
+        unsigned int m_HdrTexture = 0;
+        unsigned int m_EnvCubemap = 0;
+        unsigned int m_IrradianceMap = 0;
+        unsigned int m_PrefilterMap = 0;
+        unsigned int m_BrdfLUTMap = 0;
 
         // shader
-        Ref<Shader> backgroundShader;
-        Ref<Shader> equirectangularToCubemapShader;
-        Ref<Shader> irradianceShader;
-        Ref<Shader> prefilterShader;
-        Ref<Shader> brdfShader;
+        Ref<Shader> m_BackgroundShader;
+        Ref<Shader> m_EquirectangularToCubemapShader;
+        Ref<Shader> m_IrradianceShader;
+        Ref<Shader> m_PrefilterShader;
+        Ref<Shader> m_BrdfShader;
 
         // 用于预计算的辅助矩阵
         glm::mat4 captureProjection;
