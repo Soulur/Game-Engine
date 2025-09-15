@@ -9,6 +9,7 @@
 #include "src/Renderer/Manager/ModelManager.h"
 #include "src/Renderer/Manager/MeshManager.h"
 #include "src/Renderer/Manager/MaterialManager.h"
+#include "src/Renderer/Manager/HdrManager.h"
 // #include "src/Scripting/ScriptEngine.h"
 #include "src/Utils/PlatformUtils.h"
 #include "src/Core/Window.h"
@@ -41,6 +42,7 @@ namespace Mc {
 		MaterialManager::Get().Shutdown();
 		ModelManager::Get().Shutdown();
 		MeshManager::Get().Shutdown();
+		HdrManager::Get().UnloadAll();
 	}
 
 	void Application::PushLayer(Layer* layer)

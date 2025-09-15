@@ -179,6 +179,18 @@ namespace Mc
         shader->Unbind();
     }
 
+    void HDRSkybox::Unbind()
+    {
+        glActiveTexture(GL_TEXTURE0 + 32);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
+        glActiveTexture(GL_TEXTURE0 + 33);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
+        glActiveTexture(GL_TEXTURE0 + 34);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
     void HDRSkybox::PrecomputeIrradianceMap()
     {
         // --- 状态保存 ---
@@ -427,8 +439,8 @@ namespace Mc
         quadArray->SetIndexBuffer(quadIndexBuffer);
     }
 
-    Scope<HDRSkybox> HDRSkybox::Create()
+    Ref<HDRSkybox> HDRSkybox::Create()
     {
-        return CreateScope<HDRSkybox>();
+        return CreateRef<HDRSkybox>();
     }
 }

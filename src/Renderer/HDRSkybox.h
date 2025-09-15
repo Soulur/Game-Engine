@@ -22,6 +22,7 @@ namespace Mc
         // 渲染天空盒
         void Render(const glm::mat4 &projection, const glm::mat4 &view);
         void Bind(Ref<Shader> shader);
+        void Unbind();
 
         // 获取用于 PBR 的纹理，让外部代码能够绑定它们
         // unsigned int GetIrradianceMap() const { return irradianceMap; }
@@ -30,7 +31,7 @@ namespace Mc
 
         std::string GetPath() { return path; }
 
-        static Scope<HDRSkybox> Create();
+        static Ref<HDRSkybox> Create();
     private:
         // 预计算步骤的私有方法
         void PrecomputeIrradianceMap();

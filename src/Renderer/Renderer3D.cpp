@@ -9,6 +9,7 @@
 #include "src/Renderer/UniformBuffer.h"
 #include "src/Renderer/HDRSkybox.h"
 #include "src/Renderer/Manager/MeshManager.h"
+#include "src/Renderer/Manager/HdrManager.h"
 
 #include <glad/glad.h>
 #include <iostream>
@@ -157,7 +158,7 @@ namespace Mc
 
 		// hdr
 		// -------------------------------------------------------------------------------
-		Scope<HDRSkybox> HdrSkybox;
+		Ref<HDRSkybox> HdrSkybox;
 
 		// -------------------------------------------------------------------------------
 		// Sphere
@@ -495,6 +496,9 @@ namespace Mc
 		s_Data.DirectionalLights.clear();
 		s_Data.PointLights.clear();
 		s_Data.SpotLights.clear();
+
+		s_Data.HdrSkybox->Unbind();
+		s_Data.HdrSkybox.reset();
 	}
 
 	void Renderer3D::StartBatch()
@@ -552,7 +556,7 @@ namespace Mc
 	{
 		// Hdr
 		// ------------------------------------
-		if (s_Data.HdrSkybox->GetPath() != "")
+		if (s_Data.HdrSkybox)
 		{
 			s_Data.HdrSkybox->Render(s_Data.CameraBuffer.Projection, s_Data.CameraBuffer.View);
 			
@@ -826,9 +830,8 @@ namespace Mc
 
     void Renderer3D::DrawHdrSkybox(HdrSkyboxComponent &src, int entityID)
     {
-		if (src.Path == s_Data.HdrSkybox->GetPath())
-			return;
-		s_Data.HdrSkybox->LoadHDRMap(src.Path);
+		HdrManager::Get().SetActive(src.Path);
+		s_Data.HdrSkybox = HdrManager::Get().GetActive();
 	}
 
 	void Renderer3D::ResetStats()

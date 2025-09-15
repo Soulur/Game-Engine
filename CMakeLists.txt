@@ -239,6 +239,9 @@ add_executable(${PROJECT_NAME}
     src/Renderer/Manager/MeshManager.cpp
     src/Renderer/Manager/MeshManager.h
 
+    src/Renderer/Manager/HdrManager.cpp
+    src/Renderer/Manager/HdrManager.h
+
     # ------------------------------------------
 
     src/Scene/Scene.cpp
