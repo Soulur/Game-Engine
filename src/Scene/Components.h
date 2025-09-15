@@ -85,6 +85,10 @@ namespace Mc
 		glm::vec4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
 		float TilingFactor = 1.0f;
 
+		bool ReceivesPBR = false;
+		bool ReceivesIBL = false;
+		bool ReceivesLight = false;
+
 		SphereRendererComponent() = default;
 		SphereRendererComponent(const SphereRendererComponent &) = default;
 		SphereRendererComponent(const glm::vec4& color)

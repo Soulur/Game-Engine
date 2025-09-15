@@ -38,7 +38,6 @@ namespace Mc
 		// Sphere
 		static void DrawSphere(const glm::mat4 &transform, SphereRendererComponent &src, int entityID);
 
-		static void DrawModel(const glm::mat4 &transform, Ref<Model> model, glm::vec4 TintColor, int entityID = -1);
 		static void DrawModel(const glm::mat4 &transform, ModelRendererComponent &src, int entityID);
 
 		static void DrawLight(const glm::mat4 &transform, LightComponent &src, int entityID);

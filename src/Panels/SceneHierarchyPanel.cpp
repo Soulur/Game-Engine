@@ -541,11 +541,7 @@ namespace Mc {
 
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
 
-			if (ImGui::Checkbox("FlipUV", &component.FlipUV))
-			{
-				if (component.Model != nullptr)
-					component.Model->SetFlipUV(component.FlipUV);
-			}
+			ImGui::Checkbox("FlipUV", &component.FlipUV);
 			ImGui::Checkbox("GammaCorrection", &component.GammaCorrection);
 
 			ImGui::Text("Meshs");

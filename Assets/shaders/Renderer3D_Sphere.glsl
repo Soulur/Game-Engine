@@ -203,8 +203,6 @@ layout(std430, binding = 1) readonly buffer LightData {
     SpotLight SpotLights[MAX_SPOT_LIGHTS];
 };
 
-uniform vec3 u_CameraPosition;
-
 // ----------------------------------------------------------------------------
 // PBR Helper Functions (Cook-Torrance BRDF)
 // ----------------------------------------------------------------------------

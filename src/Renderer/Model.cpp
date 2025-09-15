@@ -9,10 +9,10 @@
 
 namespace Mc
 {
-    Model::Model(std::string const &path, bool FlipUV, bool gamma)
-        : m_Path(path), m_FlipUV(FlipUV), gammaCorrection(gamma)
+    Model::Model(std::string const &path)
+        : m_Path(path)
     {
-        LoadModel(path, FlipUV);
+        LoadModel(path);
     }
 
     void Model::LoadAllSceneMaterials(const aiScene *scene)
@@ -106,7 +106,7 @@ namespace Mc
         }
     }
 
-    void Model::LoadModel(const std::filesystem::path &path, bool FlipUV)
+    void Model::LoadModel(const std::filesystem::path &path)
     {
         // read file via ASSIMP
         Assimp::Importer importer;
@@ -193,8 +193,8 @@ namespace Mc
         return Mesh::Create(name, vertices, indices);
     }
 
-    Ref<Model> Model::Create(std::string const &path, bool FlipUV, bool gamma)
+    Ref<Model> Model::Create(std::string const &path)
     {
-        return CreateRef<Model>(path, FlipUV, gamma);
+        return CreateRef<Model>(path);
     }
 }

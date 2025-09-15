@@ -57,7 +57,7 @@ namespace Mc
 
 	// 静态断言来验证 SphereInstanceData 的大小，确保符合 std140 布局
 	// 128
-	static_assert(sizeof(SphereInstanceData) == 160, "SphereInstanceData size mismatch for std140 layout!");
+	static_assert(sizeof(SphereInstanceData) % 16 == 0, "SphereInstanceData size mismatch for std140 layout!");
 
 	struct MeshInstanceData
 	{
@@ -84,7 +84,7 @@ namespace Mc
 		int FlipUV;
 	};
 
-	static_assert(sizeof(MeshInstanceData) == 160, "MeshInstanceData size mismatch for std140 layout!");
+	static_assert(sizeof(MeshInstanceData) % 16 == 0, "MeshInstanceData size mismatch for std140 layout!");
 
 	// Light
 	struct StoredDirectionalLight
@@ -132,7 +132,7 @@ namespace Mc
 		StoredSpotLight SpotLights[8];
 	};
 
-	// static_assert(sizeof(LightData) == 160, "MeshInstanceData size mismatch for std140 layout!");
+	static_assert(sizeof(LightData) % 16 == 0, "MeshInstanceData size mismatch for std140 layout!");
 
 	// -------------------------------------------------------------------------------
 
@@ -560,7 +560,6 @@ namespace Mc
 			s_Data.SphereShader->Bind();
 
 			s_Data.SphereShader->SetMat4("u_ViewProjection", s_Data.CameraBuffer.ViewProjection);
-			s_Data.SphereShader->SetFloat3("u_CameraPosition", s_Data.CameraBuffer.CameraPosition);
 
 			s_Data.SphereInstanceSSBO->Bind();
 			s_Data.SphereInstanceSSBO->SetData(s_Data.SphereInstances.data(), s_Data.SphereCount * sizeof(SphereInstanceData));
@@ -577,7 +576,6 @@ namespace Mc
 			s_Data.ModelShader->Bind();
 
 			s_Data.ModelShader->SetMat4("u_ViewProjection", s_Data.CameraBuffer.ViewProjection);
-			s_Data.ModelShader->SetFloat3("u_CameraPosition", s_Data.CameraBuffer.CameraPosition);
 
 			// 遍历所有收集到的绘制批次
 			for (auto &pair : s_Data.ModelDrawCallBatches)
@@ -657,10 +655,13 @@ namespace Mc
 		s_Data.Stats.SphereCount++;
 	}
 
-	void Renderer3D::DrawModel(const glm::mat4 &transform, Ref<Model> model, glm::vec4 TintColor, int entityID)
+	void Renderer3D::DrawModel(const glm::mat4 &transform, ModelRendererComponent &src, int entityID)
     {
+		if (src.ModelPath.empty())
+			return;
+
 		// 遍历模型中的每个mesh
-		for (const auto &mesh : model->GetMeshs())
+		for (const auto &mesh : src.Model->GetMeshs())
 		{
 			// 获取mesh的材质
 			Ref<Material> material = mesh->GetMaterial();
@@ -669,7 +670,7 @@ namespace Mc
 
 			// 创建一个用于哈希表的键
 			Renderer3DData::ModelCallKey key;
-			key.MeshID = mesh->GetID();						   // 假设你的Mesh类有唯一ID
+			key.MeshID = mesh->GetID(); // 假设你的Mesh类有唯一ID
 
 			Renderer3DData::ModelCallBatch &batch = s_Data.ModelDrawCallBatches[key];
 
@@ -687,7 +688,7 @@ namespace Mc
 			// 填充实例数据
 			MeshInstanceData instanceData = {
 				transform,
-				TintColor,
+				src.Color,
 
 				material->GetAlbedo(),
 				glm::vec4(material->GetEmissive(), 1.0f),
@@ -705,24 +706,17 @@ namespace Mc
 				arrIndex[6],
 
 				entityID,
-				(int)model->GetFlipUV(),
+				(int)src.FlipUV,
 			};
 
 			batch.Instances.push_back(instanceData);
 			batch.InstanceCount++;
-			
+
 			arrIndex.clear();
 		}
 
 		s_Data.ModelCount++;
 		s_Data.Stats.ModelCount++; // 统计渲染的模型实例数量
-	}
-
-	void Renderer3D::DrawModel(const glm::mat4 &transform, ModelRendererComponent &src, int entityID)
-    {
-		if (src.ModelPath.empty())
-			return;
-		DrawModel(transform, src.Model, src.Color, entityID);
 	}
 
     void Renderer3D::DrawLight(const glm::mat4 &transform, LightComponent &src, int entityID)

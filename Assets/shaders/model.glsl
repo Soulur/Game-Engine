@@ -201,8 +201,6 @@ layout(std430, binding = 1) readonly buffer LightData {
     SpotLight SpotLights[MAX_SPOT_LIGHTS];
 };
 
-uniform vec3 u_CameraPosition; // 相机在世界空间的位置
-
 // ----------------------------------------------------------------------------
 // PBR Helper Functions (Cook-Torrance BRDF)
 // ----------------------------------------------------------------------------
@@ -303,7 +301,7 @@ void main()
     // --- 3. PBR 核心计算参数 ---
 
     // 视图方向 (从片元到相机)
-    vec3 V = normalize(u_CameraPosition - fs_in.WorldPos);
+    vec3 V = normalize(CameraPosition - fs_in.WorldPos);
 
     // 菲涅尔反射率 F0 (基础反射率)
     // 对于非金属，F0 通常是 0.04。对于金属，F0 等于 Albedo。
