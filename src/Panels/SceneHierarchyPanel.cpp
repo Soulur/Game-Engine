@@ -504,8 +504,11 @@ namespace Mc {
 		DrawComponent<SphereRendererComponent>("Sphere Renderer", entity, [](auto &component)
 		{
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
-			
 			ImGui::DragFloat("Tiling Texture", &component.TilingFactor, 0.1f, 0.0f, 100.0f);
+
+			ImGui::Checkbox("ReceivesPBR", &component.ReceivesPBR);
+			ImGui::Checkbox("ReceivesIBL", &component.ReceivesIBL);
+			ImGui::Checkbox("ReceivesLight", &component.ReceivesLight);
 
 			Utils::PbrUiRenderer(component.Material); 
 		});
@@ -542,6 +545,11 @@ namespace Mc {
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
 
 			ImGui::Checkbox("FlipUV", &component.FlipUV);
+			
+			ImGui::Checkbox("ReceivesPBR", &component.ReceivesPBR);
+			ImGui::Checkbox("ReceivesIBL", &component.ReceivesIBL);
+			ImGui::Checkbox("ReceivesLight", &component.ReceivesLight);
+
 			ImGui::Checkbox("GammaCorrection", &component.GammaCorrection);
 
 			ImGui::Text("Meshs");

@@ -53,6 +53,11 @@ namespace Mc
 
 		float TilingFactor;
 		int EntityID;
+
+		int ReceivesPBR;
+		int ReceivesIBL;
+		int ReceivesLight;
+		int padding_0;
 	};
 
 	// 静态断言来验证 SphereInstanceData 的大小，确保符合 std140 布局
@@ -82,6 +87,11 @@ namespace Mc
 
 		int EntityID;
 		int FlipUV;
+
+		int ReceivesPBR;
+		int ReceivesIBL;
+		int ReceivesLight;
+		int padding_0;
 	};
 
 	static_assert(sizeof(MeshInstanceData) % 16 == 0, "MeshInstanceData size mismatch for std140 layout!");
@@ -648,6 +658,11 @@ namespace Mc
 
 			src.TilingFactor,
 			entityID,
+
+			(int)src.ReceivesPBR,
+			(int)src.ReceivesIBL,
+			(int)src.ReceivesLight,
+			0,
 		});
 
 		arrIndex.clear();
@@ -707,6 +722,11 @@ namespace Mc
 
 				entityID,
 				(int)src.FlipUV,
+
+				(int)src.ReceivesPBR,
+				(int)src.ReceivesIBL,
+				(int)src.ReceivesLight,
+				0,
 			};
 
 			batch.Instances.push_back(instanceData);

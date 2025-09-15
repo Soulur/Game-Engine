@@ -243,6 +243,9 @@ namespace Mc
 			}
 			out << YAML::Key << "Color" << YAML::Value << sphereRendererComponent.Color;			
 			out << YAML::Key << "TilingFactor" << YAML::Value << sphereRendererComponent.TilingFactor;
+			out << YAML::Key << "ReceivesPBR" << YAML::Value << sphereRendererComponent.ReceivesPBR;
+			out << YAML::Key << "ReceivesIBL" << YAML::Value << sphereRendererComponent.ReceivesIBL;
+			out << YAML::Key << "ReceivesLight" << YAML::Value << sphereRendererComponent.ReceivesLight;
 
 			out << YAML::EndMap; // SpriteRendererComponent
 		}
@@ -268,6 +271,9 @@ namespace Mc
 			}
 			out << YAML::Key << "Color" << YAML::Value << modelRendererComponent.Color;
 			out << YAML::Key << "FlipUV" << YAML::Value << modelRendererComponent.FlipUV;
+			out << YAML::Key << "ReceivesPBR" << YAML::Value << modelRendererComponent.ReceivesPBR;
+			out << YAML::Key << "ReceivesIBL" << YAML::Value << modelRendererComponent.ReceivesIBL;
+			out << YAML::Key << "ReceivesLight" << YAML::Value << modelRendererComponent.ReceivesLight;
 			out << YAML::Key << "GammaCorrection" << YAML::Value << modelRendererComponent.GammaCorrection;
 
 			out << YAML::EndMap; // ModelRendererComponent
@@ -434,6 +440,9 @@ namespace Mc
 					src.Color = sphereRendererComponent["Color"].as<glm::vec4>();
 					if (sphereRendererComponent["TilingFactor"])
 						src.TilingFactor = sphereRendererComponent["TilingFactor"].as<float>();
+					src.ReceivesPBR = sphereRendererComponent["ReceivesPBR"].as<bool>();
+					src.ReceivesIBL = sphereRendererComponent["ReceivesIBL"].as<bool>();
+					src.ReceivesLight = sphereRendererComponent["ReceivesLight"].as<bool>();
 				}
 
 				auto modelRendererComponent = entity["ModelRendererComponent"];
@@ -462,6 +471,9 @@ namespace Mc
 					}
 					src.Color = modelRendererComponent["Color"].as<glm::vec4>();
 					src.FlipUV = modelRendererComponent["FlipUV"].as<bool>();
+					src.ReceivesPBR = modelRendererComponent["ReceivesPBR"].as<bool>();
+					src.ReceivesIBL = modelRendererComponent["ReceivesIBL"].as<bool>();
+					src.ReceivesLight = modelRendererComponent["ReceivesLight"].as<bool>();
 					src.GammaCorrection = modelRendererComponent["GammaCorrection"].as<bool>();
 				}
 			}

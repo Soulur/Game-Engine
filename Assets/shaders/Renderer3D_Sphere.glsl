@@ -30,6 +30,11 @@ struct InstanceData {
 
     float TilingFactor;
     int EntityID;
+
+    int ReceivesPBR;
+	int ReceivesIBL;
+	int ReceivesLight;
+	int padding_0;
 };
 
 // SSBO Declaration
@@ -64,6 +69,10 @@ out VS_OUT
 
     float TilingFactor;
     flat int EntityID;
+
+    flat int ReceivesPBR;
+	flat int ReceivesIBL;
+	flat int ReceivesLight;
 } vs_out;
 
 uniform mat4 u_ViewProjection;
@@ -113,6 +122,10 @@ void main()
 	vs_out.HeightMapIndex = instance.HeightMapIndex;
 
     vs_out.EntityID = instance.EntityID;
+
+    vs_out.ReceivesPBR = instance.ReceivesPBR;
+    vs_out.ReceivesIBL = instance.ReceivesIBL;
+    vs_out.ReceivesLight = instance.ReceivesLight;
 }
 
 // ===================================================================================================================
@@ -155,6 +168,10 @@ in VS_OUT {
 
     float TilingFactor;
     flat int EntityID;
+
+    flat int ReceivesPBR;
+	flat int ReceivesIBL;
+	flat int ReceivesLight;
 } fs_in;
 
 // ===================================================================================================================
@@ -254,7 +271,7 @@ void main()
     // 将 EntityID 直接输出到第二个颜色附件
     o_EntityID = fs_in.EntityID;
 
-    // --- 1. 从实例数据和纹理中获取 PBR 属性 ---
+    // --- 从实例数据和纹理中获取 PBR 属性 ---
     
     // 基础颜色 / 反射率 (Albedo)
     vec3 albedo = fs_in.AlbedoColor.rgb * fs_in.TintColor.rgb;
@@ -290,189 +307,244 @@ void main()
     roughness = texture(u_Textures[fs_in.RoughnessMapIndex], fs_in.TexCoords * fs_in.TilingFactor).r;
     metallic = texture(u_Textures[fs_in.MetallicMapIndex], fs_in.TexCoords * fs_in.TilingFactor).r;
     ao = texture(u_Textures[fs_in.AoMapIndex], fs_in.TexCoords * fs_in.TilingFactor).r;
-    // --- 2. 法线贴图计算 ---
 
-    vec3 N = normalize(fs_in.NormalWS); // 默认使用世界空间法线
-    if (fs_in.NormalMapIndex > -1) {
-        // 假设法线贴图存储在 (0, 1) 范围，需要转换到 (-1, 1)
-        vec3 normalFromMap = texture(u_Textures[fs_in.NormalMapIndex], fs_in.TexCoords * fs_in.TilingFactor).rgb;
-        normalFromMap = normalFromMap * 2.0 - 1.0;
-        // 将法线从切线空间转换到世界空间
-        N = normalize(fs_in.TBN * normalFromMap); 
-    }
+    vec3 finalColor;
 
-    // --- 3. PBR 核心计算参数 ---
-
-    // 视图方向 (从片元到相机)
-    vec3 V = normalize(CameraPosition - fs_in.WorldPos);
-
-    // 菲涅尔反射率 F0 (基础反射率)
-    // 对于非金属，F0 通常是 0.04。对于金属，F0 等于 Albedo。
-    vec3 F0 = vec3(0.04);
-    F0 = mix(F0, albedo, metallic);
-
-    // --- 4. 遍历所有光源并累加贡献 ---
-
-    vec3 Lo = vec3(0.0); // 累加所有直接光照
-
-    // 环境光 (此处为简化的环境光)
-    vec3 ambient = 0.03 * albedo * ao;
-
-
-    // ------------------------------------
-    // --- 光源循环：计算 PBR 直接光照 ---
-    // ------------------------------------
-
-    // 定向光
-    for (int i = 0; i < NumDirectionalLights; ++i)
+    if (fs_in.ReceivesLight == 1)
     {
-        DirectionalLight light = DirectionalLights[i];
+        // --- 法线贴图计算 ---
 
-        // 光源方向 (从片元到光源)
-        vec3 L = normalize(-light.direction);
-        // 半向量 (Halfway Vector)
-        vec3 H = normalize(V + L);
+        vec3 N = normalize(fs_in.NormalWS); // 默认使用世界空间法线
 
-        // NdotL、NdotV、NdotH、HdotV
-        float NdotL = max(dot(N, L), 0.0);
-        float NdotV = max(dot(N, V), 0.0);
-        float NdotH = max(dot(N, H), 0.0);
-        float HdotV = max(dot(H, V), 0.0);
+        if (fs_in.NormalMapIndex > -1) {
+            // 假设法线贴图存储在 (0, 1) 范围，需要转换到 (-1, 1)
+            vec3 normalFromMap = texture(u_Textures[fs_in.NormalMapIndex], fs_in.TexCoords * fs_in.TilingFactor).rgb;            
+            normalFromMap = normalFromMap * 2.0 - 1.0;
 
-        if (NdotL > 0.0) // 确保光线在法线正面
-        {
-            // PBR 核心计算
-            float D = DistributionGGX(N, H, roughness);
-            float G = GeometrySmith(N, V, L, roughness);
-            vec3 F = FresnelSchlick(HdotV, F0);
-
-            // 分母部分，防止除零
-            vec3 nominator = D * G * F;
-            float denominator = 4.0 * NdotV * NdotL + 0.001;
-            vec3 specular = nominator / denominator;
-
-            // F_diffuse = (1 - F) * (1 - metallic)
-            vec3 kD = F;
-            kD = vec3(1.0) - kD;
-            kD *= 1.0 - metallic;
-
-            // 光照贡献
-            vec3 radiance = light.color * light.intensity;
-            vec3 directLightContribution = (kD * albedo / PI + specular) * radiance * NdotL;
-
-            Lo += directLightContribution;
+            // 将法线从切线空间转换到世界空间
+            N = normalize(fs_in.TBN * normalFromMap); 
         }
-    }
+        // --- 遍历所有光源并累加贡献 ---
+        vec3 Lo = vec3(0.0); // 累加所有直接光照
+        vec3 ambient = 0.03 * albedo * ao;
 
-    // 点光源
-    for (int i = 0; i < NumPointLights; ++i)
-    {
-        PointLight light = PointLights[i];
-
-        vec3 lightToPixel = light.position - fs_in.WorldPos;
-        float distance = length(lightToPixel);
-        vec3 L = normalize(lightToPixel);
-        
-        // 光照衰减
-        float attenuation = clamp(1.0 - distance / light.radius, 0.0, 1.0);
-        if (attenuation <= 0.0) continue;
-
-        vec3 H = normalize(V + L);
-
-        float NdotL = max(dot(N, L), 0.0);
-        float NdotV = max(dot(N, V), 0.0);
-        float NdotH = max(dot(N, H), 0.0);
-        float HdotV = max(dot(H, V), 0.0);
-
-        if (NdotL > 0.0)
+        if (fs_in.ReceivesPBR == 1)
         {
-            float D = DistributionGGX(N, H, roughness);
-            float G = GeometrySmith(N, V, L, roughness);
-            vec3 F = FresnelSchlick(HdotV, F0);
+            // --- PBR 核心计算参数 ---
 
-            vec3 nominator = D * G * F;
-            float denominator = 4.0 * NdotV * NdotL + 0.001;
-            vec3 specular = nominator / denominator;
+            // 视图方向 (从片元到相机)
+            vec3 V = normalize(CameraPosition - fs_in.WorldPos);
 
-            vec3 kD = F;
-            kD = vec3(1.0) - kD;
-            kD *= 1.0 - metallic;
+            // 菲涅尔反射率 F0 (基础反射率)
+            // 对于非金属，F0 通常是 0.04。对于金属，F0 等于 Albedo。
+            vec3 F0 = vec3(0.04);
+            F0 = mix(F0, albedo, metallic);
+
+            // ------------------------------------
+            // --- 光源循环：计算 PBR 直接光照 ---
+            // ------------------------------------
+
+            // 定向光
+            for (int i = 0; i < NumDirectionalLights; ++i)
+            {
+                DirectionalLight light = DirectionalLights[i];
+
+                // 光源方向 (从片元到光源)
+                vec3 L = normalize(-light.direction);
+                // 半向量 (Halfway Vector)
+                vec3 H = normalize(V + L);
+
+                // NdotL、NdotV、NdotH、HdotV
+                float NdotL = max(dot(N, L), 0.0);
+                float NdotV = max(dot(N, V), 0.0);
+                float NdotH = max(dot(N, H), 0.0);
+                float HdotV = max(dot(H, V), 0.0);
+
+                if (NdotL > 0.0) // 确保光线在法线正面
+                {
+                    // PBR 核心计算
+                    float D = DistributionGGX(N, H, roughness);
+                    float G = GeometrySmith(N, V, L, roughness);
+                    vec3 F = FresnelSchlick(HdotV, F0);
+
+                    // 分母部分，防止除零
+                    vec3 nominator = D * G * F;
+                    float denominator = 4.0 * NdotV * NdotL + 0.001;
+                    vec3 specular = nominator / denominator;
+
+                    // F_diffuse = (1 - F) * (1 - metallic)
+                    vec3 kD = F;
+                    kD = vec3(1.0) - kD;
+                    kD *= 1.0 - metallic;
+
+                    // 光照贡献
+                    vec3 radiance = light.color * light.intensity;
+                    vec3 directLightContribution = (kD * albedo / PI + specular) * radiance * NdotL;
+
+                    Lo += directLightContribution;
+                }
+            }
+
+            // 点光源
+            for (int i = 0; i < NumPointLights; ++i)
+            {
+                PointLight light = PointLights[i];
+
+                vec3 lightToPixel = light.position - fs_in.WorldPos;
+                float distance = length(lightToPixel);
+                vec3 L = normalize(lightToPixel);
+                
+                // 光照衰减
+                float attenuation = clamp(1.0 - distance / light.radius, 0.0, 1.0);
+                if (attenuation <= 0.0) continue;
+
+                vec3 H = normalize(V + L);
+
+                float NdotL = max(dot(N, L), 0.0);
+                float NdotV = max(dot(N, V), 0.0);
+                float NdotH = max(dot(N, H), 0.0);
+                float HdotV = max(dot(H, V), 0.0);
+
+                if (NdotL > 0.0)
+                {
+                    float D = DistributionGGX(N, H, roughness);
+                    float G = GeometrySmith(N, V, L, roughness);
+                    vec3 F = FresnelSchlick(HdotV, F0);
+
+                    vec3 nominator = D * G * F;
+                    float denominator = 4.0 * NdotV * NdotL + 0.001;
+                    vec3 specular = nominator / denominator;
+
+                    vec3 kD = F;
+                    kD = vec3(1.0) - kD;
+                    kD *= 1.0 - metallic;
+                    
+                    vec3 radiance = light.color * light.intensity;
+                    vec3 directLightContribution = (kD * albedo / PI + specular) * radiance * NdotL * attenuation;
+                    
+                    Lo += directLightContribution;
+                }
+            }
             
-            vec3 radiance = light.color * light.intensity;
-            vec3 directLightContribution = (kD * albedo / PI + specular) * radiance * NdotL * attenuation;
-            
-            Lo += directLightContribution;
+            // 聚光灯
+            for (int i = 0; i < NumSpotLights; ++i)
+            {
+                SpotLight light = SpotLights[i];
+                
+                vec3 lightToPixel = light.position - fs_in.WorldPos;
+                float distance = length(lightToPixel);
+                vec3 L = normalize(lightToPixel);
+                
+                float attenuation = clamp(1.0 - distance / light.radius, 0.0, 1.0);
+                if (attenuation <= 0.0) continue;
+
+                float theta = dot(L, normalize(-light.direction));
+                float epsilon = light.innerConeCos - light.outerConeCos;
+                float spotFactor = clamp((theta - light.outerConeCos) / epsilon, 0.0, 1.0);
+                if (spotFactor <= 0.0) continue;
+
+                vec3 H = normalize(V + L);
+                
+                float NdotL = max(dot(N, L), 0.0);
+                float NdotV = max(dot(N, V), 0.0);
+                float NdotH = max(dot(N, H), 0.0);
+                float HdotV = max(dot(H, V), 0.0);
+                
+                if (NdotL > 0.0)
+                {
+                    float D = DistributionGGX(N, H, roughness);
+                    float G = GeometrySmith(N, V, L, roughness);
+                    vec3 F = FresnelSchlick(HdotV, F0);
+
+                    vec3 nominator = D * G * F;
+                    float denominator = 4.0 * NdotV * NdotL + 0.001;
+                    vec3 specular = nominator / denominator;
+
+                    vec3 kD = F;
+                    kD = vec3(1.0) - kD;
+                    kD *= 1.0 - metallic;
+
+                    vec3 radiance = light.color * light.intensity;
+                    // vec3 radiance = vec3(1.0f) * light.intensity;
+                    vec3 directLightContribution = (kD * albedo / PI + specular) * radiance * NdotL * attenuation * spotFactor;
+
+                    Lo += directLightContribution;
+                }
+            }
+
+            if (fs_in.ReceivesIBL == 1)
+            {
+                // IBL
+                vec3 R = reflect(-V, N);
+
+                vec3 F = FresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+                
+                vec3 kS = F;
+                vec3 kD = 1.0 - kS;
+                kD *= 1.0 - metallic;	  
+                
+                vec3 irradiance = texture(irradianceMap, N).rgb;
+                vec3 diffuse      = irradiance * albedo;
+                
+                // sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
+                const float MAX_REFLECTION_LOD = 4.0;
+                vec3 prefilteredColor = textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb;    
+                vec2 brdf  = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+                vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
+
+                ambient = (kD * diffuse + specular) * ao;
+            }
         }
-    }
-    
-    // 聚光灯
-    for (int i = 0; i < NumSpotLights; ++i)
-    {
-        SpotLight light = SpotLights[i];
-        
-        vec3 lightToPixel = light.position - fs_in.WorldPos;
-        float distance = length(lightToPixel);
-        vec3 L = normalize(lightToPixel);
-        
-        float attenuation = clamp(1.0 - distance / light.radius, 0.0, 1.0);
-        if (attenuation <= 0.0) continue;
-
-        float theta = dot(L, normalize(-light.direction));
-        float epsilon = light.innerConeCos - light.outerConeCos;
-        float spotFactor = clamp((theta - light.outerConeCos) / epsilon, 0.0, 1.0);
-        if (spotFactor <= 0.0) continue;
-
-        vec3 H = normalize(V + L);
-        
-        float NdotL = max(dot(N, L), 0.0);
-        float NdotV = max(dot(N, V), 0.0);
-        float NdotH = max(dot(N, H), 0.0);
-        float HdotV = max(dot(H, V), 0.0);
-        
-        if (NdotL > 0.0)
+        else // 非 PBR 模式：使用简单的光照
         {
-            float D = DistributionGGX(N, H, roughness);
-            float G = GeometrySmith(N, V, L, roughness);
-            vec3 F = FresnelSchlick(HdotV, F0);
+            vec3 V = normalize(CameraPosition - fs_in.WorldPos);
+            
+            // Lambertian 漫反射 + 简单环境光
+            for (int i = 0; i < NumDirectionalLights; ++i)
+            {
+                DirectionalLight light = DirectionalLights[i];
+                vec3 L = normalize(-light.direction);
+                float NdotL = max(dot(N, L), 0.0);
+                
+                Lo += albedo * light.color * light.intensity * NdotL;
+            }
+            for (int i = 0; i < NumPointLights; ++i)
+            {
+                PointLight light = PointLights[i];
+                vec3 L = normalize(light.position - fs_in.WorldPos);
+                float NdotL = max(dot(N, L), 0.0);
+                
+                float attenuation = clamp(1.0 - length(light.position - fs_in.WorldPos) / light.radius, 0.0, 1.0);
+                if (attenuation <= 0.0) continue;
 
-            vec3 nominator = D * G * F;
-            float denominator = 4.0 * NdotV * NdotL + 0.001;
-            vec3 specular = nominator / denominator;
+                Lo += albedo * light.color * light.intensity * NdotL * attenuation;
+            }
+            for (int i = 0; i < NumSpotLights; ++i)
+            {
+                SpotLight light = SpotLights[i];
+                vec3 L = normalize(light.position - fs_in.WorldPos);
+                float NdotL = max(dot(N, L), 0.0);
+                
+                float attenuation = clamp(1.0 - length(light.position - fs_in.WorldPos) / light.radius, 0.0, 1.0);
+                if (attenuation <= 0.0) continue;
 
-            vec3 kD = F;
-            kD = vec3(1.0) - kD;
-            kD *= 1.0 - metallic;
+                float theta = dot(L, normalize(-light.direction));
+                float epsilon = light.innerConeCos - light.outerConeCos;
+                float spotFactor = clamp((theta - light.outerConeCos) / epsilon, 0.0, 1.0);
+                if (spotFactor <= 0.0) continue;
 
-            vec3 radiance = light.color * light.intensity;
-            // vec3 radiance = vec3(1.0f) * light.intensity;
-            vec3 directLightContribution = (kD * albedo / PI + specular) * radiance * NdotL * attenuation * spotFactor;
-
-            Lo += directLightContribution;
+                Lo += albedo * light.color * light.intensity * NdotL * attenuation * spotFactor;
+            }
+            
+            ambient = 0.03 * albedo * ao;
         }
+        
+        finalColor = ambient + Lo + emissive;
     }
-
-    // IBL
-    vec3 R = reflect(-V, N);
-
-    vec3 F = FresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
-    
-    vec3 kS = F;
-    vec3 kD = 1.0 - kS;
-    kD *= 1.0 - metallic;	  
-    
-    vec3 irradiance = texture(irradianceMap, N).rgb;
-    vec3 diffuse      = irradiance * albedo;
-    
-    // sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
-    const float MAX_REFLECTION_LOD = 4.0;
-    vec3 prefilteredColor = textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb;    
-    vec2 brdf  = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
-    vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
-
-    ambient = (kD * diffuse + specular) * ao;
-
-    // --- 5. 最终颜色计算 ---
-    vec3 finalColor = ambient + Lo + emissive;
+    else // 不接收任何光照
+    {
+        finalColor = albedo + emissive;
+    }
 
     // HDR tonemapping
     finalColor = finalColor / (finalColor + vec3(1.0));

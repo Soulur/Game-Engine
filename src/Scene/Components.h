@@ -102,6 +102,11 @@ namespace Mc
 		glm::vec4 Color{1.0f, 1.0f, 1.0f, 1.0f};
 		
 		bool FlipUV = false;
+
+		bool ReceivesPBR = false;
+		bool ReceivesIBL = false;
+		bool ReceivesLight = false;
+
 		bool GammaCorrection = false;
 
 		Ref<Mesh> CurrentMesh = nullptr; // 当前批次正在渲染的模型
