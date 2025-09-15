@@ -260,14 +260,8 @@ namespace Mc
 			{
 				out << YAML::Key << "ModelPath" << YAML::Value << modelRendererComponent.ModelPath;
 				for (auto &mesh : modelRendererComponent.Model->GetMeshs())
-				{
 					if (!mesh->GetMaterial()->GetName().empty())
-					{
-						LOG_CORE_ERROR("{0}", mesh->GetName());
-						LOG_CORE_ERROR("{0}", mesh->GetMaterial()->GetName());
 						out << YAML::Key << mesh->GetName() << YAML::Value << mesh->GetMaterial()->GetName();
-					}
-				}
 			}
 			out << YAML::Key << "Color" << YAML::Value << modelRendererComponent.Color;
 			out << YAML::Key << "FlipUV" << YAML::Value << modelRendererComponent.FlipUV;
@@ -456,18 +450,13 @@ namespace Mc
 						src.Model = ModelManager::Get().GetModel(a);
 
 						for (auto &mesh : src.Model->GetMeshs())
-						{
 							if (modelRendererComponent[mesh->GetName()])
 							{
 								std::string materialName = modelRendererComponent[mesh->GetName()].as<std::string>();
-								LOG_CORE_ERROR("{0}", materialName);
-								for (auto & material : src.Model->GetMaterials())
-								{
+								for (auto &material : src.Model->GetMaterials())
 									if (material->GetName() == materialName)
 										mesh->SetMaterial(material);
-								}
 							}
-						}
 					}
 					src.Color = modelRendererComponent["Color"].as<glm::vec4>();
 					src.FlipUV = modelRendererComponent["FlipUV"].as<bool>();

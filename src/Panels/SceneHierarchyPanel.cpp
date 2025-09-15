@@ -59,13 +59,7 @@ namespace Mc {
 				material->SetEmissive(emissive);
 			}
 
-			ImGui::Text("Albedo");
-			ImGui::Text("Normal");
-			ImGui::Text("Metallic");
-			ImGui::Text("Roughness");
-			ImGui::Text("AmbientOcclusion");
-			ImGui::Text("Emissive");
-			ImGui::Text("Height");
+			std::vector<std::string> arr = {"AlbedoMap", "NormalMap", "MetallicMap", "RoughnessMap", "AmbientOcclusionMap", "EmissiveMap", "HeightMap"};
 
 			for (int i = 0; i < (int)TextureType::Count; i++)
 			{
@@ -75,23 +69,10 @@ namespace Mc {
 
 				std::string buttonLabel;
 				if (texture && !texture->GetPath().empty())
-				{
 					buttonLabel = texture->GetPath();
-				}
-				else
-				{
-					switch ((TextureType)i)
-					{
-						case TextureType::Albedo: buttonLabel = "Albedo (None)"; break;
-						case TextureType::Normal: buttonLabel = "Normal (None)"; break;
-						case TextureType::Metallic: buttonLabel = "Metallic (None)"; break;
-						case TextureType::Roughness: buttonLabel = "Roughness (None)";break;
-						case TextureType::AmbientOcclusion: buttonLabel = "AO (None)"; break;
-						case TextureType::Emissive: buttonLabel = "Emissive (None)"; break;
-						case TextureType::Height: buttonLabel = "Height (None)"; break;
-						default: buttonLabel = "Texture (None)"; break;
-					}
-				}
+				else buttonLabel = arr[i] + " (None)";
+
+				ImGui::Text(arr[i].c_str());
 
 				if (ImGui::Button(buttonLabel.c_str(), ImVec2(ImGui::GetWindowSize().x, 40)))
 				{
@@ -138,8 +119,7 @@ namespace Mc {
 				m_SelectionContext = {};
 
 			// Right-click on blank space
-			if (ImGui::BeginPopupContextWindow(0, ImGuiPopupFlags_MouseButtonRight))
-			// if (ImGui::BeginPopupContextWindow(0, 1, false))
+			if (ImGui::BeginPopupContextWindow(0, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
 			{
 				if (ImGui::MenuItem ("Create Empty Entity"))
 					m_Context->CreateEntity("Empty Entity");
@@ -186,10 +166,6 @@ namespace Mc {
 
 		if (opened)
 		{
-			ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-			bool opened = ImGui::TreeNodeEx((void*)9817239, flags, tag.c_str());
-			if (opened)
-				ImGui::TreePop();
 			ImGui::TreePop();
 		}
 
@@ -516,7 +492,7 @@ namespace Mc {
 		DrawComponent<ModelRendererComponent>("Model Renderer", entity, [](auto &component)
 		{
 			ImGui::Text("Model Path");
-			ImGui::Button(component.ModelPath.c_str(), ImVec2(ImGui::GetWindowSize().x, 40));
+			ImGui::Button((component.ModelPath + "##ModelPath").c_str(), ImVec2(ImGui::GetWindowSize().x, 40));
 
 			if (ImGui::BeginDragDropTarget())
 			{
@@ -545,7 +521,7 @@ namespace Mc {
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
 
 			ImGui::Checkbox("FlipUV", &component.FlipUV);
-			
+
 			ImGui::Checkbox("ReceivesPBR", &component.ReceivesPBR);
 			ImGui::Checkbox("ReceivesIBL", &component.ReceivesIBL);
 			ImGui::Checkbox("ReceivesLight", &component.ReceivesLight);
@@ -601,7 +577,7 @@ namespace Mc {
 		DrawComponent<HdrSkyboxComponent>("Hdr Skybox", entity, [](auto &component)
 		{
 			ImGui::Text("Hdr Skybox");
-			ImGui::Button(component.Path.c_str(), ImVec2(ImGui::GetWindowSize().x, 40));
+			ImGui::Button((component.Path + "##HdrPath").c_str(), ImVec2(ImGui::GetWindowSize().x, 40));
 
 			if (ImGui::BeginDragDropTarget())
 			{
