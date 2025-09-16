@@ -183,40 +183,47 @@ namespace Mc
 				out << YAML::EndMap; // HdrSkyboxComponent
 		}
 
-		if (entity.HasComponent<LightComponent>())
+		if (entity.HasComponent<DirectionalLightComponent>())
 		{
-			out << YAML::Key << "LightComponent";
-			out << YAML::BeginMap; // LightComponent
+			out << YAML::Key << "DirectionalLightComponent";
+			out << YAML::BeginMap; // DirectionalLightComponent
 
-			auto &lightComponent = entity.GetComponent<LightComponent>();
-			switch (lightComponent.Light.GetType())
-			{
-				case SceneLight::LightType::Point:
-				{
-					out << YAML::Key << "LightType" << YAML::Value << (int)SceneLight::LightType::Point;
-					out << YAML::Key << "Radius" << YAML::Value << lightComponent.Light.GetRadius();
-					break;
-				}
-				case SceneLight::LightType::Directional:
-				{
-					out << YAML::Key << "LightType" << YAML::Value << (int)SceneLight::LightType::Directional;
-					break;
-				}
-				case SceneLight::LightType::Spot:
-				{
-					out << YAML::Key << "LightType" << YAML::Value << (int)SceneLight::LightType::Spot;
-					out << YAML::Key << "Radius" << YAML::Value << lightComponent.Light.GetRadius();
-					out << YAML::Key << "InnerConeAngleDegrees" << YAML::Value << lightComponent.Light.GetInnerConeAngleDegrees();
-					out << YAML::Key << "OuterConeAngleDegrees" << YAML::Value << lightComponent.Light.GetOuterConeAngleDegrees();
-					break;
-				}
-			}
+			auto &directionalLightComponent = entity.GetComponent<DirectionalLightComponent>();
+			out << YAML::Key << "Intensity" << YAML::Value << directionalLightComponent.Intensity;
+			out << YAML::Key << "Color" << YAML::Value << directionalLightComponent.Color;
+			out << YAML::Key << "CastsShadows" << YAML::Value << directionalLightComponent.CastsShadows;
 
-			out << YAML::Key << "Color" << YAML::Value << lightComponent.Color;
-			out << YAML::Key << "Intensity" << YAML::Value << lightComponent.Intensity;
-			out << YAML::Key << "CastsShadows" << YAML::Value << lightComponent.CastsShadows;
+			out << YAML::EndMap; // DirectionalLightComponent
+		}
 
-			out << YAML::EndMap; // LightComponent
+		if (entity.HasComponent<PointLightComponent>())
+		{
+			out << YAML::Key << "PointLightComponent";
+			out << YAML::BeginMap; // PointLightComponent
+
+			auto &pointLightComponent = entity.GetComponent<PointLightComponent>();
+			out << YAML::Key << "Intensity" << YAML::Value << pointLightComponent.Intensity;
+			out << YAML::Key << "Color" << YAML::Value << pointLightComponent.Color;
+			out << YAML::Key << "CastsShadows" << YAML::Value << pointLightComponent.CastsShadows;
+			out << YAML::Key << "Radius" << YAML::Value << pointLightComponent.Radius;
+
+			out << YAML::EndMap; // PointLightComponent
+		}
+
+		if (entity.HasComponent<SpotLightComponent>())
+		{
+			out << YAML::Key << "SpotLightComponent";
+			out << YAML::BeginMap; // SpotLightComponent
+
+			auto &spotLightComponent = entity.GetComponent<SpotLightComponent>();
+			out << YAML::Key << "Intensity" << YAML::Value << spotLightComponent.Intensity;
+			out << YAML::Key << "Color" << YAML::Value << spotLightComponent.Color;
+			out << YAML::Key << "CastsShadows" << YAML::Value << spotLightComponent.CastsShadows;
+			out << YAML::Key << "Radius" << YAML::Value << spotLightComponent.Radius;
+			out << YAML::Key << "InnerConeAngle" << YAML::Value << spotLightComponent.InnerConeAngle;
+			out << YAML::Key << "OuterConeAngle" << YAML::Value << spotLightComponent.OuterConeAngle;
+
+			out << YAML::EndMap; // SpotLightComponent
 		}
 
 		if (entity.HasComponent<SphereRendererComponent>())
@@ -374,40 +381,35 @@ namespace Mc
 						src.Path = hdrSkyboxComponent["HdrPath"].as<std::string>();
 				}
 
-				auto lightComponent = entity["LightComponent"];
-				if (lightComponent)
+				auto directionalLightComponent = entity["DirectionalLightComponent"];
+				if (directionalLightComponent)
 				{
-					auto &src = deserializedEntity.AddComponent<LightComponent>();
+					auto& src = deserializedEntity.AddComponent<DirectionalLightComponent>();
+					src.Intensity = directionalLightComponent["Intensity"].as<float>();
+					src.Color = directionalLightComponent["Color"].as<glm::vec3>();
+					src.CastsShadows = directionalLightComponent["CastsShadows"].as<bool>();
+				}
 
-					switch (lightComponent["LightType"].as<int>())
-					{
-						case 0:
-						{
-							src.Light.SetType(SceneLight::LightType::Point);
-							src.Light.SetRadius(lightComponent["Radius"].as<float>());
-							break;
-						}
-						case 1:
-						{
-							src.Light.SetType(SceneLight::LightType::Directional);
-							break;
-						}
-						case 2:
-						{
-							src.Light.SetType(SceneLight::LightType::Spot);
-							src.Light.SetRadius(lightComponent["Radius"].as<float>());
-							src.Light.SetInnerConeAngleDegrees(lightComponent["InnerConeAngleDegrees"].as<float>());
-							src.Light.SetOuterConeAngleDegrees(lightComponent["OuterConeAngleDegrees"].as<float>());
-							break;
-						}
-					}
+				auto pointLightComponent = entity["PointLightComponent"];
+				if (pointLightComponent)
+				{
+					auto &src = deserializedEntity.AddComponent<PointLightComponent>();
+					src.Intensity = pointLightComponent["Intensity"].as<float>();
+					src.Color = pointLightComponent["Color"].as<glm::vec3>();
+					src.CastsShadows = pointLightComponent["CastsShadows"].as<bool>();
+					src.Radius = pointLightComponent["Radius"].as<float>();
+				}
 
-					src.Color = lightComponent["Color"].as<glm::vec3>();
-					src.Intensity = lightComponent["Intensity"].as<float>();
-					src.CastsShadows = lightComponent["CastsShadows"].as<bool>();
-
-					src.Light.SetIntensity(src.Intensity);
-					src.Light.SetCastsShadows(src.CastsShadows);
+				auto spotLightComponent = entity["SpotLightComponent"];
+				if (spotLightComponent)
+				{
+					auto &src = deserializedEntity.AddComponent<SpotLightComponent>();
+					src.Intensity = pointLightComponent["Intensity"].as<float>();
+					src.Color = pointLightComponent["Color"].as<glm::vec3>();
+					src.CastsShadows = pointLightComponent["CastsShadows"].as<bool>();
+					src.Radius = pointLightComponent["Radius"].as<float>();
+					src.InnerConeAngle = pointLightComponent["InnerConeAngle"].as<float>();
+					src.OuterConeAngle = pointLightComponent["OuterConeAngle"].as<float>();
 				}
 
 				auto sphereRendererComponent = entity["SphereRendererComponent"];

@@ -524,7 +524,6 @@ namespace Mc
 
 	void Renderer3D::FlushLights()
 	{
-		// s_Data.SphereShader->Bind();
 		LightData data;
 
 		data.CameraPosition = s_Data.CameraBuffer.CameraPosition;
@@ -539,17 +538,10 @@ namespace Mc
 		memcpy(data.PointLights, s_Data.PointLights.data(), s_Data.PointLights.size() * sizeof(StoredPointLight));
 		memcpy(data.SpotLights, s_Data.SpotLights.data(), s_Data.SpotLights.size() * sizeof(StoredSpotLight));
 
-		// s_Data.LightInstanceSSBO->Bind();
-		// s_Data.LightInstanceSSBO->SetData(&data, sizeof(LightData));
-		// s_Data.LightInstanceSSBO->BindBase(0);
-		// s_Data.LightInstanceSSBO->UnBind();
-
 		s_Data.LightInstanceSSBO->Bind();
 		s_Data.LightInstanceSSBO->SetData(&data, sizeof(LightData));
 		s_Data.LightInstanceSSBO->BindBase(1);
 		s_Data.LightInstanceSSBO->UnBind();
-
-		// s_Data.SphereShader->Unbind();
 	}
 
 	void Renderer3D::Flush()
@@ -743,88 +735,69 @@ namespace Mc
 		s_Data.Stats.ModelCount++; // 统计渲染的模型实例数量
 	}
 
-    void Renderer3D::DrawLight(const glm::mat4 &transform, LightComponent &src, int entityID)
+    void Renderer3D::DrawDirectionalLight(const glm::mat4 &transform, DirectionalLightComponent &src, int entityID)
     {
-		const SceneLight &light = src.Light; // 获取 LightComponent 内部的 SceneLight 实例
-
-		// 从实体的变换矩阵中提取位置和方向
-		glm::vec3 position;
-		glm::quat rotation;
-		glm::vec3 scale;
-		glm::vec3 skew;
-		glm::vec4 perspective;
-		glm::decompose(transform, scale, rotation, position, skew, perspective);
-
-		// 计算光源方向 (假设实体的局部 Z 轴负方向是光源发出光线的方向)
-		// 注意：定向光的方向在着色器中通常是从物体指向光源 (即光线射来的方向的反方向)
-		// 如果您的着色器中 light.direction 是光线射来的方向，则这里不需要取负
-		glm::vec3 direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
-
-		SceneLight::LightType type = light.GetType();
-
-		switch (type)
+		if (s_Data.DirectionalLights.size() < Renderer3DData::MAX_DIRECTIONAL_LIGHTS)
 		{
-			case SceneLight::LightType::Directional:
-			{
-				if (s_Data.DirectionalLights.size() < Renderer3DData::MAX_DIRECTIONAL_LIGHTS)
-				{
-					StoredDirectionalLight dirLight;
-					dirLight.Direction = direction;
-					dirLight.Color = light.GetColor();
-					dirLight.Intensity = light.GetIntensity();
-					dirLight.pad = 0.0f;
-					s_Data.DirectionalLights.push_back(dirLight);
-				}
-				else
-				{
-					LOG_CORE_WARN("Max directional lights reached!");
-				}
-				break;
-			}
-			case SceneLight::LightType::Point:
-			{
-				if (s_Data.PointLights.size() < Renderer3DData::MAX_POINT_LIGHTS)
-				{
-					StoredPointLight ptLight;
-					ptLight.Position = position;
-					ptLight.Color = light.GetColor();
-					ptLight.Intensity = light.GetIntensity();
-					ptLight.Radius = light.GetRadius();
-					s_Data.PointLights.push_back(ptLight);
-				}
-				else
-				{
-					LOG_CORE_WARN("Max point lights reached!");
-				}
-				break;
-			}
-			case SceneLight::LightType::Spot:
-			{
-				if (s_Data.SpotLights.size() < Renderer3DData::MAX_SPOT_LIGHTS)
-				{
-					StoredSpotLight spLight;
-					spLight.Position = position;
-					spLight.Direction = direction; // 聚光灯方向
-					spLight.Color = light.GetColor();
-					spLight.Intensity = light.GetIntensity();
-					spLight.Radius = light.GetRadius();
-					// 聚光灯锥角余弦值：
-					// GLSL 中计算衰减通常为 clamp((dot(lightDir, -light.direction) - outerConeCos) / (innerConeCos - outerConeCos), 0.0, 1.0)
-					// 其中 lightDir 是从物体指向光源的方向，-light.direction 是光源的指向方向
-					// 为了让 UI 的 Inner < Outer 逻辑与 GLSL 匹配，这里存储时需要反转：
-					spLight.InnerConeCos = glm::cos(light.GetOuterConeAngle()); // GLSL 内边界使用外锥角
-					spLight.OuterConeCos = glm::cos(light.GetInnerConeAngle()); // GLSL 外边界使用内锥角
-					spLight.pad = glm::vec3(0.0f);
-					s_Data.SpotLights.push_back(spLight);
+			glm::vec3 direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
 
-					// LOG_CORE_ERROR("{0}, {1}, {2}", spLight.Color.r, spLight.Color.g, spLight.Color.b);
-				}
-				else
-				{
-					LOG_CORE_WARN("Max spot lights reached!");
-				}
-				break;
-			}
+			StoredDirectionalLight dirLight;
+			dirLight.Direction = direction;
+			dirLight.Color = src.Color;
+			dirLight.Intensity = src.Intensity;
+			dirLight.pad = 0.0f;
+			s_Data.DirectionalLights.push_back(dirLight);
+		}
+		else
+		{
+			LOG_CORE_WARN("Max directional lights reached!");
+		}
+	}
+
+    void Renderer3D::DrawPointLight(const glm::mat4 &transform, PointLightComponent &src, int entityID)
+    {
+		if (s_Data.PointLights.size() < Renderer3DData::MAX_POINT_LIGHTS)
+		{
+			glm::vec3 position = transform[3];
+			glm::vec3 direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
+
+			StoredPointLight ptLight;
+			ptLight.Position = position;
+			ptLight.Color = src.Color;
+			ptLight.Intensity = src.Intensity;
+			ptLight.Radius = src.Radius;
+			s_Data.PointLights.push_back(ptLight);
+		}
+		else
+		{
+			LOG_CORE_WARN("Max point lights reached!");
+		}
+	}
+
+    void Renderer3D::DrawSpotLight(const glm::mat4 &transform, SpotLightComponent &src, int entityID)
+    {
+		if (s_Data.SpotLights.size() < Renderer3DData::MAX_SPOT_LIGHTS)
+		{
+			glm::vec3 position = transform[3];
+			glm::vec3 direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
+
+			StoredSpotLight spLight;
+			spLight.Position = position;
+			spLight.Direction = direction; // 聚光灯方向
+			spLight.Color = src.Color;
+			spLight.Intensity = src.Intensity;
+			spLight.Radius = src.Radius;
+
+			spLight.InnerConeCos = glm::cos(src.InnerConeAngle); // GLSL 内边界使用外锥角
+			spLight.OuterConeCos = glm::cos(src.OuterConeAngle); // GLSL 外边界使用内锥角
+			spLight.pad = glm::vec3(0.0f);
+			s_Data.SpotLights.push_back(spLight);
+
+			// LOG_CORE_ERROR("{0}, {1}, {2}", spLight.Color.r, spLight.Color.g, spLight.Color.b);
+		}
+		else
+		{
+			LOG_CORE_WARN("Max spot lights reached!");
 		}
 	}
 

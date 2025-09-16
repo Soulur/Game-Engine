@@ -40,7 +40,12 @@ namespace Mc
 
 		static void DrawModel(const glm::mat4 &transform, ModelRendererComponent &src, int entityID);
 
-		static void DrawLight(const glm::mat4 &transform, LightComponent &src, int entityID);
+		static void DrawDirectionalLight(const glm::mat4 &transform, DirectionalLightComponent &srcType, int entityID);
+		static void DrawPointLight(const glm::mat4 &transform, PointLightComponent &srcType, int entityID);
+		static void DrawSpotLight(const glm::mat4 &transform, SpotLightComponent &srcType, int entityID);
+
+
+
 
 		static void DrawHdrSkybox(HdrSkyboxComponent &src, int entityID);
 

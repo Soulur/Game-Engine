@@ -332,7 +332,10 @@ namespace Mc {
 		{
 			DisplayAddComponentEntry<TransformComponent>("Transform");
 			DisplayAddComponentEntry<CameraComponent>("Camera");
-			DisplayAddComponentEntry<LightComponent>("Light Renderer");
+			DisplayAddComponentEntry<DirectionalLightComponent>("Directional Light");
+			DisplayAddComponentEntry<PointLightComponent>("Point Light");
+			DisplayAddComponentEntry<SpotLightComponent>("Spot Light");
+
 			DisplayAddComponentEntry<SphereRendererComponent>("Sphere Renderer");
 			DisplayAddComponentEntry<ModelRendererComponent>("Model Renderer");
 			DisplayAddComponentEntry<HdrSkyboxComponent>("Hdr Skybox");
@@ -410,71 +413,40 @@ namespace Mc {
 			}
 		});
 
-		DrawComponent<LightComponent>("Light Renderer", entity, [](auto &component)
+		DrawComponent<DirectionalLightComponent>("Directional Light", entity, [](auto &component)
+		{	
+			ImGui::Text("Directional Light");
+
+			ImGui::ColorEdit3("Color", glm::value_ptr(component.Color));
+			ImGui::DragFloat("Intensity", &component.Intensity, 0.1f, 0.0f, 10.0f, "%.1f");
+		});
+
+		DrawComponent<PointLightComponent>("Point Light", entity, [](auto &component)
+		{	
+			ImGui::Text("Point Light Properties");
+
+			ImGui::ColorEdit3("Color", glm::value_ptr(component.Color));
+			ImGui::DragFloat("Intensity", &component.Intensity, 0.1f, 0.0f, 10.0f, "%.1f");
+			ImGui::DragFloat("Radius", &component.Radius, 0.1f, 0.1f, 500.0f, "%.1f");
+		});
+
+		DrawComponent<SpotLightComponent>("Spot Light", entity, [](auto &component)
 		{
-			SceneLight& light = component.Light;
+			ImGui::Text("Spot Light Properties");
 
-			const char *projectionTypeStrings[] = {"Point Light", "Directional Light", "Spot Light"};
-			const char *currentProjectionTypeString = projectionTypeStrings[(int)light.GetType()];
-			if (ImGui::BeginCombo("Projection", currentProjectionTypeString))
-			{
-				for (int i = 0; i < 3; i++)
-				{
-					bool isSelected = currentProjectionTypeString == projectionTypeStrings[i];
-					if (ImGui::Selectable(projectionTypeStrings[i], isSelected))
-					{
-						currentProjectionTypeString = projectionTypeStrings[i];
-						light.SetType((SceneLight::LightType)i);
-					}
+			ImGui::ColorEdit3("Color", glm::value_ptr(component.Color));
+			ImGui::DragFloat("Intensity", &component.Intensity, 0.1f, 0.0f, 10.0f, "%.1f");
+			ImGui::DragFloat("Radius", &component.Radius, 0.1f, 0.1f, 500.0f, "%.1f");
 
-					if (isSelected)
-						ImGui::SetItemDefaultFocus();
-				}
+			// 内锥角
+			float innerConeAngle = glm::degrees(component.InnerConeAngle);
+			if (ImGui::DragFloat("InnerConeAngle (Deg)", &innerConeAngle, 0.1f, 0.0f, 89.0f, "%.1f"))
+				component.InnerConeAngle = glm::radians(innerConeAngle);
 
-				ImGui::EndCombo();
-			}
-
-			if (ImGui::ColorEdit3("Color", glm::value_ptr(component.Color)))
-			{
-				auto color = component.Color;
-				light.SetColor(color);
-			}
-			ImGui::DragFloat("Intensity", &component.Intensity);
-			{
-				auto intensity = component.Intensity;
-				light.SetIntensity(intensity);
-			}
-			ImGui::Checkbox("CastsShadows", &component.CastsShadows);
-
-			if (light.GetType() == SceneLight::LightType::Point)
-			{
-				float radius = light.GetRadius();
-				// 半径：建议最小值0.1（避免光源退化），最大值根据场景需求，例如500.0f
-				// 拖动速度：0.1f 提供平滑调整，如果需要更粗略调整可设为1.0f
-				if (ImGui::DragFloat("Radius", &radius, 0.1f, 0.1f, 500.0f, "%.1f"))
-					light.SetRadius(radius);
-			}
-
-			// --- 聚光灯属性 ---
-			if (light.GetType() == SceneLight::LightType::Spot)
-			{
-				float radius = light.GetRadius();
-				if (ImGui::DragFloat("Radius", &radius, 0.1f, 0.1f, 500.0f, "%.1f"))
-					light.SetRadius(radius);
-				// 内锥角：
-				// 范围：0.0f 到 89.0f (必须小于外锥角，且小于90度)
-				// 拖动速度：0.1f 提供平滑调整
-				float innerConeAngle = light.GetInnerConeAngleDegrees();
-				if (ImGui::DragFloat("InnerConeAngle (Deg)", &innerConeAngle, 0.1f, 0.0f, 89.0f, "%.1f"))
-					light.SetInnerConeAngleDegrees(innerConeAngle);
-
-				// 外锥角：
-				// 范围：1.0f 到 90.0f (必须大于内锥角，且小于等于90度)
-				// 拖动速度：0.1f 提供平滑调整
-				float outerConeAngle = light.GetOuterConeAngleDegrees();
-				if (ImGui::DragFloat("OuterConeAngle (Deg)", &outerConeAngle, 0.1f, 1.0f, 90.0f, "%.1f"))
-					light.SetOuterConeAngleDegrees(outerConeAngle);
-			}
+			// 外锥角
+			float outerConeAngle = glm::degrees(component.OuterConeAngle);
+			if (ImGui::DragFloat("OuterConeAngle (Deg)", &outerConeAngle, 0.1f, 1.0f, 90.0f, "%.1f"))
+				component.OuterConeAngle = glm::radians(outerConeAngle);
 		});
 
 		DrawComponent<SphereRendererComponent>("Sphere Renderer", entity, [](auto &component)

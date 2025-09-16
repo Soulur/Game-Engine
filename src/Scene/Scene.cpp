@@ -218,12 +218,27 @@ namespace Mc
 			Renderer3D::BeginScene(*mainCamera, cameraTransform);
 
 			{
-				auto view = m_Registry.view<TransformComponent, LightComponent>();
-				for (auto entity : view)
+				auto directionalLightsView = m_Registry.view<TransformComponent, DirectionalLightComponent>();
+				for (auto entity : directionalLightsView)
 				{
-					auto [transform, light] = view.get<TransformComponent, LightComponent>(entity);
-					Renderer3D::DrawLight(transform.GetTransform(), light, (int)entity);
+					auto [transform, light] = directionalLightsView.get<TransformComponent, DirectionalLightComponent>(entity);
+					Renderer3D::DrawDirectionalLight(transform.GetTransform(), light, (int)entity);
 				}
+
+				auto pointLightsView = m_Registry.view<TransformComponent, PointLightComponent>();
+				for (auto entity : pointLightsView)
+				{
+					auto [transform, light] = pointLightsView.get<TransformComponent, PointLightComponent>(entity);
+					Renderer3D::DrawPointLight(transform.GetTransform(), light, (int)entity);
+				}
+
+				auto spotLightsView = m_Registry.view<TransformComponent, SpotLightComponent>();
+				for (auto entity : spotLightsView)
+				{
+					auto [transform, light] = spotLightsView.get<TransformComponent, SpotLightComponent>(entity);
+					Renderer3D::DrawSpotLight(transform.GetTransform(), light, (int)entity);
+				}
+
 				// Light SSBO
 				Renderer3D::FlushLights();
 			}
@@ -352,12 +367,27 @@ namespace Mc
 		}
 
 		{
-			auto view = m_Registry.view<TransformComponent, LightComponent>();
-			for (auto entity : view)
+			auto directionalLightsView = m_Registry.view<TransformComponent, DirectionalLightComponent>();
+			for (auto entity : directionalLightsView)
 			{
-				auto [transform, light] = view.get<TransformComponent, LightComponent>(entity);
-				Renderer3D::DrawLight(transform.GetTransform(), light, (int)entity);
+				auto [transform, light] = directionalLightsView.get<TransformComponent, DirectionalLightComponent>(entity);
+				Renderer3D::DrawDirectionalLight(transform.GetTransform(), light, (int)entity);
 			}
+
+			auto pointLightsView = m_Registry.view<TransformComponent, PointLightComponent>();
+			for (auto entity : pointLightsView)
+			{
+				auto [transform, light] = pointLightsView.get<TransformComponent, PointLightComponent>(entity);
+				Renderer3D::DrawPointLight(transform.GetTransform(), light, (int)entity);
+			}
+
+			auto spotLightsView = m_Registry.view<TransformComponent, SpotLightComponent>();
+			for (auto entity : spotLightsView)
+			{
+				auto [transform, light] = spotLightsView.get<TransformComponent, SpotLightComponent>(entity);
+				Renderer3D::DrawSpotLight(transform.GetTransform(), light, (int)entity);
+			}
+
 			// Light SSBO
 			Renderer3D::FlushLights();
 		}
@@ -591,9 +621,7 @@ namespace Mc
 			auto &transform = entity.AddComponent<TransformComponent>();
 			transform.Translation = glm::vec3(0.0f, 4.0f, 0.0f);
 
-			auto& light = entity.AddComponent<LightComponent>();
-			light.Light.SetType(SceneLight::LightType::Point);
-			light.Light.SetRadius(100.0f);
+			entity.AddComponent<PointLightComponent>();
 
 			auto &tag = entity.AddComponent<TagComponent>();
 			tag.Tag = "Point Light";
@@ -639,7 +667,17 @@ namespace Mc
 	}
 
 	template <>
-	void Scene::OnComponentAdded<LightComponent>(Entity entity, LightComponent &component)
+	void Scene::OnComponentAdded<DirectionalLightComponent>(Entity entity, DirectionalLightComponent &component)
+	{
+	}
+
+	template <>
+	void Scene::OnComponentAdded<PointLightComponent>(Entity entity, PointLightComponent &component)
+	{
+	}
+
+	template <>
+	void Scene::OnComponentAdded<SpotLightComponent>(Entity entity, SpotLightComponent &component)
 	{
 	}
 

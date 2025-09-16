@@ -207,8 +207,7 @@ add_executable(${PROJECT_NAME}
     src/Renderer/Framebuffer.cpp
     src/Renderer/Framebuffer.h
 
-    src/Renderer/Light.cpp
-    src/Renderer/Light.h
+    # obj
 
     src/Renderer/Mesh.cpp
     src/Renderer/Mesh.h

@@ -3,7 +3,6 @@
 #include "src/Scene/SceneCamera.h"
 #include "src/Core/UUID.h"
 #include "src/Renderer/Texture.h"
-#include "src/Renderer/Light.h"
 #include "src/Renderer/Sphere.h"
 #include "src/Renderer/Model.h"
 
@@ -67,15 +66,40 @@ namespace Mc
 		CameraComponent(const CameraComponent&) = default;
 	};
 
-	struct LightComponent
+	struct DirectionalLightComponent
 	{
-		SceneLight Light;
 		glm::vec3 Color{1.0f, 1.0f, 1.0f};
-		float Intensity = 1.0f; // 光源强度，默认为1.0
-		bool CastsShadows = false; // 是否投射阴影，默认为真
+		float Intensity = 1.0f;
+		bool CastsShadows = false;
 
-		LightComponent() = default;
-		LightComponent(const LightComponent &) = default;
+		DirectionalLightComponent() = default;
+		DirectionalLightComponent(const DirectionalLightComponent &) = default;
+	};
+
+	struct PointLightComponent
+	{
+		glm::vec3 Color{1.0f, 1.0f, 1.0f};
+		float Intensity = 1.0f;
+		bool CastsShadows = false;
+
+		float Radius = 10.0f;
+
+		PointLightComponent() = default;
+		PointLightComponent(const PointLightComponent &) = default;
+	};
+
+	struct SpotLightComponent
+	{
+		glm::vec3 Color{1.0f, 1.0f, 1.0f};
+		float Intensity = 1.0f;
+		bool CastsShadows = false;
+
+		float Radius = 10.0f;
+		float InnerConeAngle = glm::radians(10.0f);
+		float OuterConeAngle = glm::radians(20.0f);
+
+		SpotLightComponent() = default;
+		SpotLightComponent(const SpotLightComponent &) = default;
 	};
 
 	struct SphereRendererComponent
@@ -133,7 +157,8 @@ namespace Mc
 	};
 
 	using AllComponents =
-		ComponentGroup<TransformComponent, CameraComponent,LightComponent,
+		ComponentGroup<TransformComponent, CameraComponent,
+		DirectionalLightComponent,PointLightComponent,SpotLightComponent,
 		SphereRendererComponent,
 		ModelRendererComponent, HdrSkyboxComponent
 		>;
