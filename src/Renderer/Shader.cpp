@@ -92,7 +92,7 @@ namespace Mc
     void Shader::Complie(const std::unordered_map<GLenum, std::string> &shaderSourc)
     {
         GLuint program = glCreateProgram();
-        std::array<GLenum, 2> glShaderIDs{};
+        std::array<GLenum, 3> glShaderIDs{};
         int glShaderIDIndex = 0;
         for (auto &kv : shaderSourc)
         {

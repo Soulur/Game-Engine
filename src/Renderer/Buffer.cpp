@@ -62,6 +62,7 @@ namespace Mc
     // ========================================================================
 
     ShaderStorageBuffer::ShaderStorageBuffer(uint32_t size)
+        : m_Size(size)
     {
         glCreateBuffers(1, &m_RendererID);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_RendererID);
@@ -89,7 +90,15 @@ namespace Mc
 
     void ShaderStorageBuffer::SetData(const void *data, uint32_t size)
     {
-        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, size, data);
+        if (size > m_Size)
+        {
+            glBufferData(GL_SHADER_STORAGE_BUFFER, size, data, GL_DYNAMIC_DRAW);
+            m_Size = size;
+        }
+        else
+        {
+            glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, size, data);
+        }
     }
 
     void ShaderStorageBuffer::BindBase(uint32_t bindingPoint) const

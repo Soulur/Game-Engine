@@ -143,6 +143,7 @@ namespace Mc
         void Destroy();
     private:
         uint32_t m_RendererID;
+        uint32_t m_Size;
     public:
         static Ref<ShaderStorageBuffer> Create(uint32_t size);
     };

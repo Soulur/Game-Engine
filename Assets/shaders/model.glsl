@@ -174,9 +174,10 @@ in VS_OUT {
 
 // ===================================================================================================================
 // 光源 Uniforms (与 C++ Renderer3DData 中的定义一致)
-#define MAX_DIRECTIONAL_LIGHTS 4
-#define MAX_POINT_LIGHTS       8
-#define MAX_SPOT_LIGHTS        8
+#define MAXLIGHTS 8
+#define MAX_DIRECTIONAL_LIGHTS MAXLIGHTS
+#define MAX_POINT_LIGHTS       MAXLIGHTS
+#define MAX_SPOT_LIGHTS        MAXLIGHTS
 
 struct DirectionalLight {
     vec3 direction; // 光源方向 (通常是从物体指向光源，或约定为光线射来的方向的反方向)

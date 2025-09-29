@@ -223,6 +223,9 @@ add_executable(${PROJECT_NAME}
     src/Renderer/HDRSkybox.cpp
     src/Renderer/HDRSkybox.h
 
+    src/Renderer/Shadow.cpp
+    src/Renderer/Shadow.h
+
     # Manager
     # ------------------------------------------
 
@@ -240,6 +243,9 @@ add_executable(${PROJECT_NAME}
 
     src/Renderer/Manager/HdrManager.cpp
     src/Renderer/Manager/HdrManager.h
+
+    src/Renderer/Manager/SceneManager.cpp
+    src/Renderer/Manager/SceneManager.h
 
     # ------------------------------------------
 

@@ -5,6 +5,7 @@
 #include "src/Renderer/EditorCamera.h"
 #include "src/Renderer/Texture.h"
 #include "src/Renderer/Shader.h"
+#include "src/Renderer/Manager/SceneManager.h"
 
 #include <entt/entt.hpp>
 
@@ -66,6 +67,8 @@ namespace Mc
 		std::unordered_map<UUID, entt::entity> m_EntityMap;
 
 		Ref<Texture2D> m_CameraTexture;
+
+		Scope<SceneManager> m_SceneEntity;
 
 		friend class Entity;
 		friend class SceneSerializer;

@@ -34,7 +34,7 @@ struct InstanceData {
     int ReceivesPBR;
 	int ReceivesIBL;
 	int ReceivesLight;
-	int padding_0;
+    int ReceivesShadow;
 };
 
 // SSBO Declaration
@@ -73,6 +73,7 @@ out VS_OUT
     flat int ReceivesPBR;
 	flat int ReceivesIBL;
 	flat int ReceivesLight;
+    flat int ReceivesShadow;
 } vs_out;
 
 uniform mat4 u_ViewProjection;
@@ -126,6 +127,7 @@ void main()
     vs_out.ReceivesPBR = instance.ReceivesPBR;
     vs_out.ReceivesIBL = instance.ReceivesIBL;
     vs_out.ReceivesLight = instance.ReceivesLight;
+    vs_out.ReceivesShadow = instance.ReceivesShadow;
 }
 
 // ===================================================================================================================
@@ -172,13 +174,15 @@ in VS_OUT {
     flat int ReceivesPBR;
 	flat int ReceivesIBL;
 	flat int ReceivesLight;
+    flat int ReceivesShadow;
 } fs_in;
 
 // ===================================================================================================================
 // 光源 Uniforms (与 C++ Renderer3DData 中的定义一致)
-#define MAX_DIRECTIONAL_LIGHTS 4
-#define MAX_POINT_LIGHTS       8
-#define MAX_SPOT_LIGHTS        8
+#define MAXLIGHTS 8
+#define MAX_DIRECTIONAL_LIGHTS MAXLIGHTS
+#define MAX_POINT_LIGHTS       MAXLIGHTS
+#define MAX_SPOT_LIGHTS        MAXLIGHTS
 
 struct DirectionalLight {
     vec3 direction; // 光源方向 (通常是从物体指向光源，或约定为光线射来的方向的反方向)
@@ -192,6 +196,12 @@ struct PointLight {
     float intensity;
     vec3 color;
     float radius; // 影响半径
+
+    
+	int CastsShadows;
+	float FarPlane;
+	int ShadowMapIndex;
+	float padding_0;
 };
 
 struct SpotLight {
@@ -266,6 +276,61 @@ vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 }
 
 // ----------------------------------------------------------------------------
+uniform samplerCube u_PointShadowDepthMaps[MAXLIGHTS];
+
+vec3 gridSamplingDisk[20] = vec3[]
+(
+   vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1), 
+   vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
+   vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
+   vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
+   vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
+);
+
+float ShadowCalculation(vec3 fragPos, vec3 lightPos, float farPlane, int slot)
+{
+    // 从片元指向光源的向量
+    vec3 fragToLight = fragPos - lightPos;
+    
+    // 当前片元到光源的距离
+    float currentDepth = length(fragToLight);
+    
+    // 动态偏置，基于法线和光线夹角
+    // vec3 l = normalize(lightPos - fragPos);
+    // float bias = max(0.01 * (1.0 - dot(n, l)), 0.001);
+    float bias = 0.15;
+
+    float shadow = 0.0;
+    int samples = 20;
+
+    // 摄像机到片元的距离
+    float viewDistance = length(CameraPosition - fragPos);
+    // 软阴影采样半径，随距离增加而增大
+    float diskRadius = (1.0 + (viewDistance / farPlane)) / 25.0;
+
+    for(int i = 0; i < samples; ++i)
+    {
+        // 采样方向 = fragToLight + 偏移量
+        // 归一化采样方向以适应立方体贴图
+        vec3 samplingDirection = normalize(fragToLight + gridSamplingDisk[i] * diskRadius);
+        
+        // 采样深度值
+        float closestDepth = texture(u_PointShadowDepthMaps[slot], samplingDirection).r;
+        closestDepth *= farPlane;
+        
+        // 比较深度，并应用偏置
+        if(currentDepth - bias > closestDepth) {
+            shadow += 1.0;
+        }
+    }
+
+    // 平均采样结果
+    shadow /= float(samples);
+    
+    return shadow;
+}
+
+// ----------------------------------------------------------------------------
 void main()
 {
     // 将 EntityID 直接输出到第二个颜色附件
@@ -304,9 +369,9 @@ void main()
         emissive *= texture(u_Textures[fs_in.EmissiveMapIndex], fs_in.TexCoords * fs_in.TilingFactor).rgb;
     }
 
-    roughness = texture(u_Textures[fs_in.RoughnessMapIndex], fs_in.TexCoords * fs_in.TilingFactor).r;
-    metallic = texture(u_Textures[fs_in.MetallicMapIndex], fs_in.TexCoords * fs_in.TilingFactor).r;
-    ao = texture(u_Textures[fs_in.AoMapIndex], fs_in.TexCoords * fs_in.TilingFactor).r;
+    // roughness = texture(u_Textures[fs_in.RoughnessMapIndex], fs_in.TexCoords * fs_in.TilingFactor).r;
+    // metallic = texture(u_Textures[fs_in.MetallicMapIndex], fs_in.TexCoords * fs_in.TilingFactor).r;
+    // ao = texture(u_Textures[fs_in.AoMapIndex], fs_in.TexCoords * fs_in.TilingFactor).r;
 
     vec3 finalColor;
 
@@ -422,7 +487,14 @@ void main()
                     vec3 radiance = light.color * light.intensity;
                     vec3 directLightContribution = (kD * albedo / PI + specular) * radiance * NdotL * attenuation;
                     
-                    Lo += directLightContribution;
+                    // calculate shadow
+                    float shadow = 0.0;
+                    if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)
+                    {
+                        shadow = ShadowCalculation(fs_in.WorldPos, light.position, light.FarPlane, light.ShadowMapIndex);
+                    }
+
+                    Lo += directLightContribution * (1.0 - shadow);
                 }
             }
             
@@ -553,6 +625,16 @@ void main()
     
     o_Color = vec4(finalColor, alpha);
     
+    // float tttDepth = 1.0;
+    // for (int i = 0; i < NumPointLights; ++i)
+    // {
+    //     PointLight light = PointLights[i];
+    //     if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)
+    //         tttDepth *= 1.0 - ShadowCalculation(fs_in.WorldPos, light.position, light.FarPlane, light.ShadowMapIndex);
+    // }
+
+    // o_Color = vec4(Lo, 1.0);
+
     // o_Color = vec4(albedo, 1.0);
     // o_Color = vec4(metallic, 1.0, 1.0, 1.0);
     // o_Color = vec4(roughness, 1.0, 1.0, 1.0);

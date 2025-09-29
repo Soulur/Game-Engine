@@ -102,6 +102,13 @@ namespace Mc
 		SpotLightComponent(const SpotLightComponent &) = default;
 	};
 
+	struct ShadowComponent
+	{
+		unsigned int Resolution = 1024;
+		float NearPlane = 1.0f;
+		float FarPlane = 25.0f;
+	};
+
 	struct SphereRendererComponent
 	{
 		Ref<Material> Material = MaterialManager::Get().AddMaterial();
@@ -112,6 +119,8 @@ namespace Mc
 		bool ReceivesPBR = false;
 		bool ReceivesIBL = false;
 		bool ReceivesLight = false;
+		bool ReceivesShadow = false;
+		bool ProjectionShadow = false;
 
 		SphereRendererComponent() = default;
 		SphereRendererComponent(const SphereRendererComponent &) = default;
@@ -159,6 +168,7 @@ namespace Mc
 	using AllComponents =
 		ComponentGroup<TransformComponent, CameraComponent,
 		DirectionalLightComponent,PointLightComponent,SpotLightComponent,
+		ShadowComponent,
 		SphereRendererComponent,
 		ModelRendererComponent, HdrSkyboxComponent
 		>;

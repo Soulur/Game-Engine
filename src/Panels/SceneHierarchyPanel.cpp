@@ -421,13 +421,30 @@ namespace Mc {
 			ImGui::DragFloat("Intensity", &component.Intensity, 0.1f, 0.0f, 10.0f, "%.1f");
 		});
 
-		DrawComponent<PointLightComponent>("Point Light", entity, [](auto &component)
+		DrawComponent<PointLightComponent>("Point Light", entity, [this](auto &component)
 		{	
 			ImGui::Text("Point Light Properties");
 
 			ImGui::ColorEdit3("Color", glm::value_ptr(component.Color));
 			ImGui::DragFloat("Intensity", &component.Intensity, 0.1f, 0.0f, 10.0f, "%.1f");
 			ImGui::DragFloat("Radius", &component.Radius, 0.1f, 0.1f, 500.0f, "%.1f");
+
+			ImGui::Checkbox("Casts Shadows", &component.CastsShadows);
+
+			if (component.CastsShadows)
+			{
+				if (!m_SelectionContext.HasComponent<ShadowComponent>())
+				{
+					m_SelectionContext.AddComponent<ShadowComponent>();
+				}
+			}
+			else
+			{
+				if (m_SelectionContext.HasComponent<ShadowComponent>())
+				{
+					m_SelectionContext.RemoveComponent<ShadowComponent>();
+				}
+			}
 		});
 
 		DrawComponent<SpotLightComponent>("Spot Light", entity, [](auto &component)
@@ -449,6 +466,15 @@ namespace Mc {
 				component.OuterConeAngle = glm::radians(outerConeAngle);
 		});
 
+		DrawComponent<ShadowComponent>("Shadow Renderer", entity, [](auto &component)
+		{	
+			ImGui::Text("Shadow");
+
+			ImGui::InputInt("Resolution", (int *)&component.Resolution);
+			ImGui::DragFloat("Near Plane", &component.NearPlane, 0.1f, 0.0f, 1000.0f, "%.1f");
+			ImGui::DragFloat("Far Plane", &component.FarPlane, 0.1f, 0.0f, 10000.0f, "%.1f");
+		});
+
 		DrawComponent<SphereRendererComponent>("Sphere Renderer", entity, [](auto &component)
 		{
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
@@ -457,6 +483,8 @@ namespace Mc {
 			ImGui::Checkbox("ReceivesPBR", &component.ReceivesPBR);
 			ImGui::Checkbox("ReceivesIBL", &component.ReceivesIBL);
 			ImGui::Checkbox("ReceivesLight", &component.ReceivesLight);
+			ImGui::Checkbox("ReceivesShadow", &component.ReceivesShadow);
+			ImGui::Checkbox("ProjectionShadow", &component.ProjectionShadow);
 
 			Utils::PbrUiRenderer(component.Material); 
 		});

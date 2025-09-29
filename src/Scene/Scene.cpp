@@ -14,6 +14,7 @@ namespace Mc
 	Scene::Scene()
 	{
 		m_CameraTexture = Texture2D::Create("Assets/textures/cameraTexture.png");
+		m_SceneEntity = SceneManager::Create(m_Registry);
 	}
 
 	Scene::~Scene()
@@ -229,7 +230,8 @@ namespace Mc
 				for (auto entity : pointLightsView)
 				{
 					auto [transform, light] = pointLightsView.get<TransformComponent, PointLightComponent>(entity);
-					Renderer3D::DrawPointLight(transform.GetTransform(), light, (int)entity);
+					ShadowComponent* shadow = m_Registry.try_get<ShadowComponent>(entity);
+					Renderer3D::DrawPointLight(transform.GetTransform(), light, shadow, (int)entity);
 				}
 
 				auto spotLightsView = m_Registry.view<TransformComponent, SpotLightComponent>();
@@ -238,9 +240,6 @@ namespace Mc
 					auto [transform, light] = spotLightsView.get<TransformComponent, SpotLightComponent>(entity);
 					Renderer3D::DrawSpotLight(transform.GetTransform(), light, (int)entity);
 				}
-
-				// Light SSBO
-				Renderer3D::FlushLights();
 			}
 
 			// Draw Hdr
@@ -378,7 +377,8 @@ namespace Mc
 			for (auto entity : pointLightsView)
 			{
 				auto [transform, light] = pointLightsView.get<TransformComponent, PointLightComponent>(entity);
-				Renderer3D::DrawPointLight(transform.GetTransform(), light, (int)entity);
+				ShadowComponent* shadow = m_Registry.try_get<ShadowComponent>(entity);
+				Renderer3D::DrawPointLight(transform.GetTransform(), light, shadow, (int)entity);
 			}
 
 			auto spotLightsView = m_Registry.view<TransformComponent, SpotLightComponent>();
@@ -387,9 +387,6 @@ namespace Mc
 				auto [transform, light] = spotLightsView.get<TransformComponent, SpotLightComponent>(entity);
 				Renderer3D::DrawSpotLight(transform.GetTransform(), light, (int)entity);
 			}
-
-			// Light SSBO
-			Renderer3D::FlushLights();
 		}
 
 		// Draw Hdr
@@ -458,47 +455,47 @@ namespace Mc
 
 		// int n = 300;
 		// for (int i = 0; i < n; i++)
-		{
-			auto uuid = UUID();
-			Entity entity = {m_Registry.create(), this};
-			entity.AddComponent<IDComponent>();
-			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(-4.0f, 2.2f, 0.0f);
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	auto &transform = entity.AddComponent<TransformComponent>();
+		// 	transform.Translation = glm::vec3(-4.0f, 2.2f, 0.0f);
 
-			auto &sphere = entity.AddComponent<SphereRendererComponent>();
-			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/grass/albedo.png");
-			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/grass/normal.png");
-			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/grass/metallic.png");
-			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/grass/roughness.png");
-			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/grass/ao.png");
-			sphere.Material->SetAlbedo(glm::vec4(1.0f));
+		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
+		// 	sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/grass/albedo.png");
+		// 	sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/grass/normal.png");
+		// 	sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/grass/metallic.png");
+		// 	sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/grass/roughness.png");
+		// 	sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/grass/ao.png");
+		// 	sphere.Material->SetAlbedo(glm::vec4(1.0f));
 
-			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "Grass";
+		// 	auto &tag = entity.AddComponent<TagComponent>();
+		// 	tag.Tag = "Grass";
 
-			m_EntityMap[uuid] = entity;
-		}
+		// 	m_EntityMap[uuid] = entity;
+		// }
 
-		{
-			auto uuid = UUID();
-			Entity entity = {m_Registry.create(), this};
-			entity.AddComponent<IDComponent>();
-			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(-2.0f, 2.2f, 0.0f);
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	auto &transform = entity.AddComponent<TransformComponent>();
+		// 	transform.Translation = glm::vec3(-2.0f, 2.2f, 0.0f);
 
-			auto &sphere = entity.AddComponent<SphereRendererComponent>();
-			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/gold/albedo.png");
-			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/gold/normal.png");
-			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/gold/metallic.png");
-			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/gold/roughness.png");
-			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/gold/ao.png");
-			sphere.Material->SetAlbedo(glm::vec4(1.0f));
+		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
+		// 	sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/gold/albedo.png");
+		// 	sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/gold/normal.png");
+		// 	sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/gold/metallic.png");
+		// 	sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/gold/roughness.png");
+		// 	sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/gold/ao.png");
+		// 	sphere.Material->SetAlbedo(glm::vec4(1.0f));
 
-			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "Gold";
+		// 	auto &tag = entity.AddComponent<TagComponent>();
+		// 	tag.Tag = "Gold";
 
-			m_EntityMap[uuid] = entity;
-		}
+		// 	m_EntityMap[uuid] = entity;
+		// }
 
 		{
 			auto uuid = UUID();
@@ -526,59 +523,81 @@ namespace Mc
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
 			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(2.0f, 2.2f, 0.0f);
+			transform.Translation = glm::vec3(0.0f, -1.0f, 0.0f);
+			transform.Scale = glm::vec3(4.0f, 1.0f, 4.0f);
 
 			auto &sphere = entity.AddComponent<SphereRendererComponent>();
-			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/rusted_iron/albedo.png");
-			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/rusted_iron/normal.png");
-			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/rusted_iron/metallic.png");
-			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/rusted_iron/roughness.png");
-			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/rusted_iron/ao.png");
+			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/plastic/albedo.png");
+			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/plastic/normal.png");
+			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/plastic/metallic.png");
+			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/plastic/roughness.png");
+			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/plastic/ao.png");
 			sphere.Material->SetAlbedo(glm::vec4(1.0f));
 
 			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "Rusted_iron";
+			tag.Tag = "chassis";
 
 			m_EntityMap[uuid] = entity;
 		}
 
-		{
-			auto uuid = UUID();
-			Entity entity = {m_Registry.create(), this};
-			entity.AddComponent<IDComponent>();
-			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(4.0f, 2.2f, 0.0f);
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	auto &transform = entity.AddComponent<TransformComponent>();
+		// 	transform.Translation = glm::vec3(2.0f, 2.2f, 0.0f);
 
-			auto &sphere = entity.AddComponent<SphereRendererComponent>();
-			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/wall/albedo.png");
-			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/wall/normal.png");
-			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/wall/metallic.png");
-			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/wall/roughness.png");
-			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/wall/ao.png");
-			sphere.Material->SetAlbedo(glm::vec4(1.0f));
+		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
+		// 	sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/rusted_iron/albedo.png");
+		// 	sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/rusted_iron/normal.png");
+		// 	sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/rusted_iron/metallic.png");
+		// 	sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/rusted_iron/roughness.png");
+		// 	sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/rusted_iron/ao.png");
+		// 	sphere.Material->SetAlbedo(glm::vec4(1.0f));
 
-			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "Wall";
+		// 	auto &tag = entity.AddComponent<TagComponent>();
+		// 	tag.Tag = "Rusted_iron";
 
-			m_EntityMap[uuid] = entity;
-		}
+		// 	m_EntityMap[uuid] = entity;
+		// }
 
-		{
-			auto uuid = UUID();
-			Entity entity = {m_Registry.create(), this};
-			entity.AddComponent<IDComponent>();
-			entity.AddComponent<TransformComponent>();
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	auto &transform = entity.AddComponent<TransformComponent>();
+		// 	transform.Translation = glm::vec3(4.0f, 2.2f, 0.0f);
 
-			auto &obj = entity.AddComponent<ModelRendererComponent>();
-			obj.FlipUV = true;
-			obj.ModelPath = "Assets/objs/Spaceship/Spaceship.obj";
-			obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
+		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
+		// 	sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/wall/albedo.png");
+		// 	sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/wall/normal.png");
+		// 	sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/wall/metallic.png");
+		// 	sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/wall/roughness.png");
+		// 	sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/wall/ao.png");
+		// 	sphere.Material->SetAlbedo(glm::vec4(1.0f));
 
-			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "obj Model 0";
+		// 	auto &tag = entity.AddComponent<TagComponent>();
+		// 	tag.Tag = "Wall";
 
-			m_EntityMap[uuid] = entity;
-		}
+		// 	m_EntityMap[uuid] = entity;
+		// }
+
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	entity.AddComponent<TransformComponent>();
+
+		// 	auto &obj = entity.AddComponent<ModelRendererComponent>();
+		// 	obj.FlipUV = true;
+		// 	obj.ModelPath = "Assets/objs/Spaceship/Spaceship.obj";
+		// 	obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
+
+		// 	auto &tag = entity.AddComponent<TagComponent>();
+		// 	tag.Tag = "obj Model 0";
+
+		// 	m_EntityMap[uuid] = entity;
+		// }
 
 		// {
 		// 	auto uuid = UUID();
@@ -619,12 +638,27 @@ namespace Mc
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
 			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(0.0f, 4.0f, 0.0f);
+			transform.Translation = glm::vec3(1.0f, 6.0f, 0.0f);
 
 			entity.AddComponent<PointLightComponent>();
 
 			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "Point Light";
+			tag.Tag = "Point Light1";
+
+			m_EntityMap[uuid] = entity;
+		}
+
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(-1.0f, 6.0f, 0.0f);
+
+			entity.AddComponent<PointLightComponent>();
+
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Point Light2";
 
 			m_EntityMap[uuid] = entity;
 		}
@@ -678,6 +712,11 @@ namespace Mc
 
 	template <>
 	void Scene::OnComponentAdded<SpotLightComponent>(Entity entity, SpotLightComponent &component)
+	{
+	}
+
+	template <>
+	void Scene::OnComponentAdded<ShadowComponent>(Entity entity, ShadowComponent &component)
 	{
 	}
 
