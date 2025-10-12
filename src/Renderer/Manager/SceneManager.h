@@ -30,6 +30,14 @@ namespace Mc
                 Renderer3D::AddPointShadow(entity, shadow.Resolution);
                 LOG_CORE_ERROR("1");
             }
+
+            LOG_CORE_ERROR("2");
+            if (registry.any_of<DirectionalLightComponent>(entity))
+            {
+                auto &light = registry.get<DirectionalLightComponent>(entity);
+                auto &shadow = registry.get<ShadowComponent>(entity);
+                Renderer3D::AddDirectionalShadow(entity, shadow.Resolution);
+            }
         }
 
         void OnPointShadowDestroyed(entt::registry &registry, entt::entity entity)
@@ -40,6 +48,14 @@ namespace Mc
                 auto &shadow = registry.get<ShadowComponent>(entity);
                 Renderer3D::DelPointShadow(entity);
                 LOG_CORE_ERROR("0");
+            }
+
+            if (registry.any_of<DirectionalLightComponent>(entity))
+            {
+                auto &light = registry.get<DirectionalLightComponent>(entity);
+                auto &shadow = registry.get<ShadowComponent>(entity);
+                Renderer3D::DelDirectionalShadow(entity);
+                LOG_CORE_ERROR("-1");
             }
         }
     };

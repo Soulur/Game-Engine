@@ -38,7 +38,7 @@ namespace Mc
         fbSpec.Height = Application::Get().GetWindow().GetHeight();
 
         m_EditorFramebuffer = Framebuffer::Create(fbSpec);
-        m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 1000.0f);
+        m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 100.0f);
 
         m_GameFramebuffer = Framebuffer::Create(fbSpec);
 

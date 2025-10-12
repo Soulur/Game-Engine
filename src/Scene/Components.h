@@ -104,7 +104,7 @@ namespace Mc
 
 	struct ShadowComponent
 	{
-		unsigned int Resolution = 1024;
+		unsigned int Resolution = 2048;
 		float NearPlane = 1.0f;
 		float FarPlane = 25.0f;
 	};

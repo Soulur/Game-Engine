@@ -223,7 +223,8 @@ namespace Mc
 				for (auto entity : directionalLightsView)
 				{
 					auto [transform, light] = directionalLightsView.get<TransformComponent, DirectionalLightComponent>(entity);
-					Renderer3D::DrawDirectionalLight(transform.GetTransform(), light, (int)entity);
+					ShadowComponent* shadow = m_Registry.try_get<ShadowComponent>(entity);
+					Renderer3D::DrawDirectionalLight(transform.GetTransform(), light, shadow, (int)entity);
 				}
 
 				auto pointLightsView = m_Registry.view<TransformComponent, PointLightComponent>();
@@ -370,7 +371,8 @@ namespace Mc
 			for (auto entity : directionalLightsView)
 			{
 				auto [transform, light] = directionalLightsView.get<TransformComponent, DirectionalLightComponent>(entity);
-				Renderer3D::DrawDirectionalLight(transform.GetTransform(), light, (int)entity);
+				ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entity);
+				Renderer3D::DrawDirectionalLight(transform.GetTransform(), light, shadow, (int)entity);
 			}
 
 			auto pointLightsView = m_Registry.view<TransformComponent, PointLightComponent>();
@@ -502,7 +504,7 @@ namespace Mc
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
 			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(0.0f, 2.2f, 0.0f);
+			transform.Translation = glm::vec3(-1.0f, 0.5f, 0.0f);
 
 			auto &sphere = entity.AddComponent<SphereRendererComponent>();
 			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/plastic/albedo.png");
@@ -523,8 +525,29 @@ namespace Mc
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
 			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(0.0f, -1.0f, 0.0f);
-			transform.Scale = glm::vec3(4.0f, 1.0f, 4.0f);
+			transform.Translation = glm::vec3(1.0f, 0.5f, 0.0f);
+
+			auto &sphere = entity.AddComponent<SphereRendererComponent>();
+			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/plastic/albedo.png");
+			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/plastic/normal.png");
+			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/plastic/metallic.png");
+			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/plastic/roughness.png");
+			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/plastic/ao.png");
+			sphere.Material->SetAlbedo(glm::vec4(1.0f));
+
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Plastic";
+
+			m_EntityMap[uuid] = entity;
+		}
+
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(-6.0f, -4.0f, 0.0f);
+			transform.Scale = glm::vec3(5.0f, 5.0f, 5.0f);
 
 			auto &sphere = entity.AddComponent<SphereRendererComponent>();
 			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/plastic/albedo.png");
@@ -618,50 +641,49 @@ namespace Mc
 		// 	m_EntityMap[uuid] = entity;
 		// }
 
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Rotation = glm::vec3(-0.5f, 1.0f, 0.0f);
+
+			auto &light = entity.AddComponent<DirectionalLightComponent>();
+
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Directional Light";
+			m_EntityMap[uuid] = entity;
+		}
+
 		// {
 		// 	auto uuid = UUID();
 		// 	Entity entity = {m_Registry.create(), this};
 		// 	entity.AddComponent<IDComponent>();
 		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(0.0f, 0.0f, 0.0f);
+		// 	transform.Translation = glm::vec3(1.0f, 6.0f, 0.0f);
 
-		// 	auto &light = entity.AddComponent<LightComponent>();
-		// 	light.Light.SetType(SceneLight::LightType::Directional);
+		// 	entity.AddComponent<PointLightComponent>();
 
 		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "Directional Light";
+		// 	tag.Tag = "Point Light1";
+
 		// 	m_EntityMap[uuid] = entity;
 		// }
 
-		{
-			auto uuid = UUID();
-			Entity entity = {m_Registry.create(), this};
-			entity.AddComponent<IDComponent>();
-			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(1.0f, 6.0f, 0.0f);
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	auto &transform = entity.AddComponent<TransformComponent>();
+		// 	transform.Translation = glm::vec3(-1.0f, 6.0f, 0.0f);
 
-			entity.AddComponent<PointLightComponent>();
+		// 	entity.AddComponent<PointLightComponent>();
 
-			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "Point Light1";
+		// 	auto &tag = entity.AddComponent<TagComponent>();
+		// 	tag.Tag = "Point Light2";
 
-			m_EntityMap[uuid] = entity;
-		}
-
-		{
-			auto uuid = UUID();
-			Entity entity = {m_Registry.create(), this};
-			entity.AddComponent<IDComponent>();
-			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(-1.0f, 6.0f, 0.0f);
-
-			entity.AddComponent<PointLightComponent>();
-
-			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "Point Light2";
-
-			m_EntityMap[uuid] = entity;
-		}
+		// 	m_EntityMap[uuid] = entity;
+		// }
 
 		// {
 		// 	auto uuid = UUID();

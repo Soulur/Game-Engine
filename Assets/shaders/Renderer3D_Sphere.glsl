@@ -188,7 +188,13 @@ struct DirectionalLight {
     vec3 direction; // 光源方向 (通常是从物体指向光源，或约定为光线射来的方向的反方向)
     float intensity;
     vec3 color;
-    float pad;
+    int CastsShadows;
+
+	mat4 LightSpaceMatrix;
+	int ShadowMapIndex;
+	float padding_0;
+	float padding_1;
+	float padding_2;
 };
 
 struct PointLight {
@@ -277,6 +283,7 @@ vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 
 // ----------------------------------------------------------------------------
 uniform samplerCube u_PointShadowDepthMaps[MAXLIGHTS];
+uniform sampler2D u_DirectionalShadowMaps[MAXLIGHTS];
 
 vec3 gridSamplingDisk[20] = vec3[]
 (
@@ -287,7 +294,7 @@ vec3 gridSamplingDisk[20] = vec3[]
    vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
 );
 
-float ShadowCalculation(vec3 fragPos, vec3 lightPos, float farPlane, int slot)
+float ShadowCalculation(vec3 fragPos, vec3 lightPos, float farPlane, int shadowMapIndex)
 {
     // 从片元指向光源的向量
     vec3 fragToLight = fragPos - lightPos;
@@ -315,7 +322,7 @@ float ShadowCalculation(vec3 fragPos, vec3 lightPos, float farPlane, int slot)
         vec3 samplingDirection = normalize(fragToLight + gridSamplingDisk[i] * diskRadius);
         
         // 采样深度值
-        float closestDepth = texture(u_PointShadowDepthMaps[slot], samplingDirection).r;
+        float closestDepth = texture(u_PointShadowDepthMaps[shadowMapIndex], samplingDirection).r;
         closestDepth *= farPlane;
         
         // 比较深度，并应用偏置
@@ -325,6 +332,48 @@ float ShadowCalculation(vec3 fragPos, vec3 lightPos, float farPlane, int slot)
     }
 
     // 平均采样结果
+    shadow /= float(samples);
+    
+    return shadow;
+}
+
+
+float CalculateDirectionalShadow(vec3 fragPos, vec3 lightPos, mat4 lightSpaceMatrix, int shadowMapIndex) 
+{ 
+    vec4 lightSpacePos = lightSpaceMatrix * vec4(fragPos, 1.0); 
+    vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w; 
+    projCoords = projCoords * 0.5 + 0.5; 
+
+    if (projCoords.x > 1.0 || projCoords.x < 0.0 ||  
+        projCoords.y > 1.0 || projCoords.y < 0.0 ||  
+        projCoords.z > 1.0 || projCoords.z < 0.0) 
+    { 
+        return 1.0;
+    }
+    
+    float closestDepth = texture(u_DirectionalShadowMaps[shadowMapIndex], projCoords.xy).r; 
+    float currentDepth = projCoords.z;
+    vec3 normal = normalize(fs_in.NormalWS);
+    vec3 lightDir = normalize(lightPos - fragPos);
+    float bias = 0.005;  // 可以根据场景调整
+    // float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+
+    // --- PCF (Percentage Closer Filtering) 采样 ---
+    float shadow = 0.0;
+    // vec2 texelSize = vec2(1.0 / 2048.0);
+    vec2 texelSize = 1.0 / textureSize(u_DirectionalShadowMaps[shadowMapIndex], 0);
+    int samples = 9;
+    
+    // 3x3 采样循环
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            float pcfDepth = texture(u_DirectionalShadowMaps[shadowMapIndex], projCoords.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth > pcfDepth + bias ? 1.0 : 0.0;
+        }    
+    }
+    // 平均化阴影值 (0.0 表示全阴影，1.0 表示全光照)
     shadow /= float(samples);
     
     return shadow;
@@ -446,7 +495,15 @@ void main()
                     vec3 radiance = light.color * light.intensity;
                     vec3 directLightContribution = (kD * albedo / PI + specular) * radiance * NdotL;
 
-                    Lo += directLightContribution;
+                    // Lo += directLightContribution;
+
+                    float shadow = 0.0;
+                    if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)
+                    {
+                        shadow = CalculateDirectionalShadow(fs_in.WorldPos, L, light.LightSpaceMatrix, light.ShadowMapIndex);
+                    }
+
+                    Lo += directLightContribution * (1.0 - shadow);
                 }
             }
 
@@ -633,7 +690,19 @@ void main()
     //         tttDepth *= 1.0 - ShadowCalculation(fs_in.WorldPos, light.position, light.FarPlane, light.ShadowMapIndex);
     // }
 
-    // o_Color = vec4(Lo, 1.0);
+    // float tttDepth = 1.0;
+    // for (int i = 0; i < NumDirectionalLights; ++i)
+    // {
+    //     DirectionalLight light = DirectionalLights[i];
+    //     if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)
+    //     {
+    //         float shadow = CalculateDirectionalShadow(fs_in.WorldPos, light.LightSpaceMatrix, light.ShadowMapIndex);
+    //         tttDepth *= (1.0 - shadow);
+    //     }
+    // }
+
+
+    // o_Color = vec4(vec3(tttDepth), 1.0);
 
     // o_Color = vec4(albedo, 1.0);
     // o_Color = vec4(metallic, 1.0, 1.0, 1.0);

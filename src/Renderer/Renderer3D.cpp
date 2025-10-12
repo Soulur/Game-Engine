@@ -107,7 +107,13 @@ namespace Mc
 		glm::vec3 Direction;
 		float Intensity;
 		glm::vec3 Color;
-		float pad;
+		int CastsShadows;
+
+		glm::mat4 LightSpaceMatrix;
+		int ShadowMapIndex;
+		float padding_0;
+		float padding_1;
+		float padding_2;
 	};
 
 	struct StoredPointLight
@@ -263,6 +269,26 @@ namespace Mc
 
 		std::vector<StoredPointShadowCPU> PointShadows;
 		uint32_t PointShadowTextureSlotIndex = 0;
+		uint32_t PointShadowTextureStart = 0;
+
+		// Directional Shadow
+		std::unordered_map<int, Ref<DirectionalShadowMap>> DirectionalShadowMaps;
+		// shader
+		Ref<Shader> DirectionalShadowShader;
+
+		Ref<ShaderStorageBuffer> DirectionalShadowInstanceSSBO;
+
+		struct StoredDirectionalShadowCPU
+		{
+			glm::mat4 LightSpaceMatrix;
+
+			Ref<DirectionalShadowMap> Shadow;
+			int Slot;
+		};
+
+		std::vector<StoredDirectionalShadowCPU> DirectionalShadows;
+		uint32_t DirectionalShadowTextureSlotIndex = 0;
+		uint32_t DirectionalShadowTextureStart = 0;
 
 		// Camera
 		// -------------------------------------------------------------------------------
@@ -326,6 +352,122 @@ namespace Mc
 				}
 			}
 			return indices;
+		}
+
+		glm::mat4 CalculateDirectionalLightSpaceMatrix(
+			const glm::mat4 &cameraProjectionMatrix,
+			const glm::mat4 &cameraViewMatrix,
+			const glm::vec3 &lightDirection,
+			float shadowMapDistance,
+			float nearPlane,
+			float farPlane
+		)
+		{
+			glm::mat4 correctViewProjection = cameraProjectionMatrix * cameraViewMatrix;
+
+			// NDC 范围通常为 [-1, 1] for X, Y, Z
+			glm::vec4 frustumCorners[8] = {
+				// 近平面 (Near Plane)
+				glm::vec4(1.0f, 1.0f, -1.0f, 1.0f),	  // RTN (右上近)
+				glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f),  // LTN
+				glm::vec4(1.0f, -1.0f, -1.0f, 1.0f),  // RBN
+				glm::vec4(-1.0f, -1.0f, -1.0f, 1.0f), // LBN
+				// 远平面 (Far Plane)
+				glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),	// RTF (右上远)
+				glm::vec4(-1.0f, 1.0f, 1.0f, 1.0f), // LTF
+				glm::vec4(1.0f, -1.0f, 1.0f, 1.0f), // RBF
+				glm::vec4(-1.0f, -1.0f, 1.0f, 1.0f) // LBF
+			};
+
+			// --- 2. 变换到世界空间 (World Space) ---
+			glm::mat4 invCamVP = glm::inverse(correctViewProjection);
+			glm::vec3 center = glm::vec3(0.0f);
+
+			for (int i = 0; i < 8; ++i)
+			{
+				glm::vec4 worldCorner = invCamVP * frustumCorners[i];
+				frustumCorners[i] = worldCorner / worldCorner.w;
+				center += glm::vec3(frustumCorners[i]);
+			}
+			glm::vec3 frustumCorner = center / 8.0f;
+
+			glm::mat4 lightProjection, lightView, lightSpaceMatrix;
+
+			glm::vec3 lightDir = lightDirection;
+			glm::vec3 targetPos = frustumCorner;
+			glm::vec3 lightPos = targetPos - lightDir * shadowMapDistance;
+			glm::vec3 upVector = (glm::abs(glm::dot(lightDir, glm::vec3(0.0, 1.0, 0.0))) > 0.99f)
+									 ? glm::vec3(0.0f, 0.0f, 1.0f)
+									 : glm::vec3(0.0f, 1.0f, 0.0f);
+
+			lightView = glm::lookAt(lightPos, targetPos, upVector);
+
+			// ------------------------------------------------------------------------
+
+			const float SHADOW_MAP_DIMENSION = 2048.0f; // 确保与你实际的纹理大小一致
+
+			// --- 边界计算 (此部分代码是正确的) ---
+			glm::vec3 minLightCoords = glm::vec3(std::numeric_limits<float>::max());
+			glm::vec3 maxLightCoords = glm::vec3(std::numeric_limits<float>::lowest());
+
+			for (int i = 0; i < 8; ++i)
+			{
+				glm::vec4 lightCorner = lightView * frustumCorners[i];
+				minLightCoords.x = glm::min(minLightCoords.x, lightCorner.x);
+				maxLightCoords.x = glm::max(maxLightCoords.x, lightCorner.x);
+				minLightCoords.y = glm::min(minLightCoords.y, lightCorner.y);
+				maxLightCoords.y = glm::max(maxLightCoords.y, lightCorner.y);
+				minLightCoords.z = glm::min(minLightCoords.z, lightCorner.z);
+				maxLightCoords.z = glm::max(maxLightCoords.z, lightCorner.z);
+			}
+
+			float lightFrustumWidth = maxLightCoords.x - minLightCoords.x;
+			float lightFrustumHeight = maxLightCoords.y - minLightCoords.y;
+			float texelSizeX = lightFrustumWidth / SHADOW_MAP_DIMENSION;
+			float texelSizeY = lightFrustumHeight / SHADOW_MAP_DIMENSION;
+
+			// 计算对齐前的中心点
+			float lightSpaceCenterX = (minLightCoords.x + maxLightCoords.x) * 0.5f;
+			float lightSpaceCenterY = (minLightCoords.y + maxLightCoords.y) * 0.5f;
+
+			// 计算对齐后的中心点 (向下取整到最近的纹素网格点)
+			float snappedCenterX = floor(lightSpaceCenterX / texelSizeX) * texelSizeX;
+			float snappedCenterY = floor(lightSpaceCenterY / texelSizeY) * texelSizeY;
+
+			// 计算平移偏移量
+			float translationX = snappedCenterX - lightSpaceCenterX;
+			float translationY = snappedCenterY - lightSpaceCenterY;
+
+			glm::mat4 correctionMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(translationX, translationY, 0.0f));
+
+			lightView = correctionMatrix * lightView;
+
+			minLightCoords = glm::vec3(std::numeric_limits<float>::max());
+			maxLightCoords = glm::vec3(std::numeric_limits<float>::lowest());
+			for (int i = 0; i < 8; ++i)
+			{
+				glm::vec4 lightCorner = lightView * frustumCorners[i];
+				minLightCoords.x = glm::min(minLightCoords.x, lightCorner.x);
+				maxLightCoords.x = glm::max(maxLightCoords.x, lightCorner.x);
+				minLightCoords.y = glm::min(minLightCoords.y, lightCorner.y);
+				maxLightCoords.y = glm::max(maxLightCoords.y, lightCorner.y);
+				minLightCoords.z = glm::min(minLightCoords.z, lightCorner.z);
+				maxLightCoords.z = glm::max(maxLightCoords.z, lightCorner.z);
+			}
+			const float Z_OFFSET_NEAR = nearPlane;
+			const float Z_OFFSET_FAR = farPlane;
+
+			float lightNearPlane = minLightCoords.z - Z_OFFSET_NEAR;
+			float lightFarPlane = maxLightCoords.z + Z_OFFSET_FAR;
+
+			lightProjection = glm::ortho(
+				minLightCoords.x, maxLightCoords.x,
+				minLightCoords.y, maxLightCoords.y,
+				lightNearPlane, lightFarPlane);
+
+			lightSpaceMatrix = lightProjection * lightView;
+
+			return lightSpaceMatrix;
 		}
 	}
 
@@ -452,6 +594,8 @@ namespace Mc
 
 		s_Data.PointShadowShader = Shader::Create("Assets/shaders/shadow/Renderer3DPointShadowDepthShader.glsl");
 
+		s_Data.DirectionalShadowShader = Shader::Create("Assets/shaders/shadow/Renderer3DDirectionalShadowDepthShader.glsl");
+
 		// Texture
 		// -----------------------------------------------------------------
 
@@ -473,14 +617,29 @@ namespace Mc
 		s_Data.TextureSlots[0] = s_Data.WhiteTexture;
 
 		// Point Shadow Texture
-		uint32_t shadow_offset = 35;
+		int32_t shadow_offset = 35;
+
+		s_Data.PointShadowTextureStart = shadow_offset;
 
 		int32_t samplerPointShadows[s_Data.MAX_POINT_LIGHTS];
 		for (uint32_t i = 0; i < s_Data.MAX_POINT_LIGHTS; i++)
-			samplerPointShadows[i] = i + shadow_offset;
+			samplerPointShadows[i] = shadow_offset++;
 
 		s_Data.SphereShader->Bind();
 		s_Data.SphereShader->SetIntArray("u_PointShadowDepthMaps", samplerPointShadows, s_Data.MAX_POINT_LIGHTS);
+		s_Data.SphereShader->Unbind();
+
+		s_Data.DirectionalShadowTextureStart = shadow_offset;
+
+		int32_t samplerDirectionalShadows[s_Data.MAX_DIRECTIONAL_LIGHTS];
+		for (uint32_t i = 0; i < s_Data.MAX_DIRECTIONAL_LIGHTS; i++)
+		{
+			samplerDirectionalShadows[i] = shadow_offset++;
+			LOG_CORE_WARN("{0}", samplerDirectionalShadows[i]);
+		}
+
+		s_Data.SphereShader->Bind();
+		s_Data.SphereShader->SetIntArray("u_DirectionalShadowMaps", samplerDirectionalShadows, s_Data.MAX_DIRECTIONAL_LIGHTS);
 		s_Data.SphereShader->Unbind();
 
 		// Add Material 0
@@ -550,6 +709,7 @@ namespace Mc
 	{
 		// Light SSBO
 		Renderer3D::FlushPointShadows();
+		Renderer3D::FlushDirectionalShadows();
 		Renderer3D::FlushLights();
 
 		Flush();
@@ -562,6 +722,9 @@ namespace Mc
 		// clear shadow Data
 		s_Data.PointShadows.clear();
 		s_Data.PointShadowTextureSlotIndex = 0;
+
+		s_Data.DirectionalShadows.clear();
+		s_Data.DirectionalShadowTextureSlotIndex = 0;
 
 		// clear obj tranform data
 		s_Data.ProjectionShadowDatas.SphereTranformDatas.clear();
@@ -667,12 +830,57 @@ namespace Mc
 				glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 				// --- 状态恢复结束 ---
 
-				data.Shadow->BindTexture(data.Slot);
+				data.Shadow->BindTexture(data.Slot + s_Data.PointShadowTextureStart);
 			}
 		}
 	}
 
-	void Renderer3D::Flush()
+    void Renderer3D::FlushDirectionalShadows()
+    {
+		// Bind shadow
+		{
+			for (auto data : s_Data.DirectionalShadows)
+			{
+				// --- 状态保存 ---
+				GLint viewport[4];
+				glGetIntegerv(GL_VIEWPORT, viewport);
+				GLint currentFBO;
+				glGetIntegerv(GL_FRAMEBUFFER_BINDING, &currentFBO);
+				// --- 状态保存结束 ---
+
+				data.Shadow->Bind();
+				s_Data.DirectionalShadowShader->Bind();
+
+				// --- 启用并设置深度偏移 ---
+				// 启用多边形偏移
+				glEnable(GL_POLYGON_OFFSET_FILL);
+				glPolygonOffset(2.0f, 4.0f);
+
+				s_Data.DirectionalShadowShader->SetMat4("u_LightSpaceMatrix", data.LightSpaceMatrix);
+
+				for (auto &tranform : s_Data.ProjectionShadowDatas.SphereTranformDatas)
+				{
+					s_Data.DirectionalShadowShader->SetMat4("u_Model", tranform);
+					s_Data.DefaultSphereMesh->GetVertexArray()->Bind();
+					glDrawElements(GL_TRIANGLE_STRIP, s_Data.DefaultSphereMesh->GetIndexCount(), GL_UNSIGNED_INT, 0);
+				}
+
+				glDisable(GL_POLYGON_OFFSET_FILL);
+
+				data.Shadow->Unbind();
+				s_Data.DirectionalShadowShader->Unbind();
+
+				// --- 状态恢复 ---
+				glBindFramebuffer(GL_FRAMEBUFFER, currentFBO);
+				glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+				// --- 状态恢复结束 ---
+
+				data.Shadow->BindTexture(data.Slot + s_Data.DirectionalShadowTextureStart);
+			}
+		}
+	}
+
+    void Renderer3D::Flush()
 	{
 		// Hdr
 		// ------------------------------------
@@ -868,7 +1076,7 @@ namespace Mc
 		s_Data.Stats.ModelCount++; // 统计渲染的模型实例数量
 	}
 
-	void Renderer3D::DrawDirectionalLight(const glm::mat4 &transform, DirectionalLightComponent &src, int entityID)
+	void Renderer3D::DrawDirectionalLight(const glm::mat4 &transform, DirectionalLightComponent &src, ShadowComponent *shadow, int entityID)
 	{
 		if (s_Data.DirectionalLights.size() < Renderer3DData::MAX_DIRECTIONAL_LIGHTS)
 		{
@@ -878,7 +1086,39 @@ namespace Mc
 			dirLight.Direction = direction;
 			dirLight.Color = src.Color;
 			dirLight.Intensity = src.Intensity;
-			dirLight.pad = 0.0f;
+			dirLight.CastsShadows = (int)src.CastsShadows;
+
+			dirLight.padding_0 = 0.0f;
+			dirLight.padding_1 = 0.0f;
+			dirLight.padding_2 = 0.0f;
+
+			auto it = s_Data.DirectionalShadowMaps.find(entityID);
+			if (it != s_Data.DirectionalShadowMaps.end())
+			{
+				const glm::mat4 &currentProjection = s_Data.CameraBuffer.Projection;
+				const glm::mat4 &currentViewMatrix = s_Data.CameraBuffer.View;
+
+				glm::mat4 lightSpaceMatrix =  Utils::CalculateDirectionalLightSpaceMatrix(currentProjection, currentViewMatrix, direction, 10.0f, shadow->NearPlane, shadow->FarPlane);
+				// ================================================
+
+				dirLight.LightSpaceMatrix = lightSpaceMatrix;
+				dirLight.ShadowMapIndex = s_Data.DirectionalShadowTextureSlotIndex;
+
+				Renderer3DData::StoredDirectionalShadowCPU data;
+
+				data.LightSpaceMatrix = lightSpaceMatrix;
+				data.Shadow = it->second;
+				data.Slot = s_Data.DirectionalShadowTextureSlotIndex;
+
+				s_Data.DirectionalShadows.push_back(data);
+				s_Data.DirectionalShadowTextureSlotIndex++;
+			}
+			else
+			{
+				dirLight.LightSpaceMatrix = glm::mat4(0.0);
+				dirLight.ShadowMapIndex = -1;
+			}
+
 			s_Data.DirectionalLights.push_back(dirLight);
 		}
 		else
@@ -974,16 +1214,30 @@ namespace Mc
 		}
 	}
 
-	void Renderer3D::AddPointShadow(entt::entity enttity, unsigned int resolution)
-	{
-		auto it = s_Data.PointShadowMaps.find((int)enttity);
-		if (it == s_Data.PointShadowMaps.end())
-			s_Data.PointShadowMaps[(int)enttity] = PointShadowMap::Create(resolution);
+    void Renderer3D::AddDirectionalShadow(entt::entity entity, unsigned int resolution)
+    {
+		auto it = s_Data.DirectionalShadowMaps.find((int)entity);
+		if (it == s_Data.DirectionalShadowMaps.end())
+			s_Data.DirectionalShadowMaps[(int)entity] = DirectionalShadowMap::Create(resolution);
 	}
 
-	void Renderer3D::DelPointShadow(entt::entity enttity)
+    void Renderer3D::DelDirectionalShadow(entt::entity entity)
+    {
+		auto it = s_Data.DirectionalShadowMaps.find((int)entity);
+		if (it != s_Data.DirectionalShadowMaps.end())
+			s_Data.DirectionalShadowMaps.erase(it);
+	}
+
+	void Renderer3D::AddPointShadow(entt::entity entity, unsigned int resolution)
 	{
-		auto it = s_Data.PointShadowMaps.find((int)enttity);
+		auto it = s_Data.PointShadowMaps.find((int)entity);
+		if (it == s_Data.PointShadowMaps.end())
+			s_Data.PointShadowMaps[(int)entity] = PointShadowMap::Create(resolution);
+	}
+
+	void Renderer3D::DelPointShadow(entt::entity entity)
+	{
+		auto it = s_Data.PointShadowMaps.find((int)entity);
 		if (it != s_Data.PointShadowMaps.end())
 			s_Data.PointShadowMaps.erase(it);
 	}

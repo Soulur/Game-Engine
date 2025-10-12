@@ -25,4 +25,24 @@ namespace Mc
         unsigned int m_DepthMapFBO;
         unsigned int m_DepthCubemap;
     };
+
+    class DirectionalShadowMap
+    {
+    public:
+        DirectionalShadowMap(unsigned int resolution);
+        ~DirectionalShadowMap();
+
+        void Init();
+
+        void Bind();
+        void Unbind();
+        void BindTexture(uint32_t slot);
+
+        static Ref<DirectionalShadowMap> Create(unsigned int resolution);
+
+    private:
+        unsigned int m_Resolution;
+        unsigned int m_DepthMapFBO;
+        unsigned int m_DepthMap;
+    };
 }

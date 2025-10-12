@@ -413,12 +413,29 @@ namespace Mc {
 			}
 		});
 
-		DrawComponent<DirectionalLightComponent>("Directional Light", entity, [](auto &component)
+		DrawComponent<DirectionalLightComponent>("Directional Light", entity, [this](auto &component)
 		{	
 			ImGui::Text("Directional Light");
 
 			ImGui::ColorEdit3("Color", glm::value_ptr(component.Color));
 			ImGui::DragFloat("Intensity", &component.Intensity, 0.1f, 0.0f, 10.0f, "%.1f");
+
+			ImGui::Checkbox("Casts Shadows", &component.CastsShadows);
+
+			if (component.CastsShadows)
+			{
+				if (!m_SelectionContext.HasComponent<ShadowComponent>())
+				{
+					m_SelectionContext.AddComponent<ShadowComponent>();
+				}
+			}
+			else
+			{
+				if (m_SelectionContext.HasComponent<ShadowComponent>())
+				{
+					m_SelectionContext.RemoveComponent<ShadowComponent>();
+				}
+			}
 		});
 
 		DrawComponent<PointLightComponent>("Point Light", entity, [this](auto &component)
