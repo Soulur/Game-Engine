@@ -239,7 +239,8 @@ namespace Mc
 				for (auto entity : spotLightsView)
 				{
 					auto [transform, light] = spotLightsView.get<TransformComponent, SpotLightComponent>(entity);
-					Renderer3D::DrawSpotLight(transform.GetTransform(), light, (int)entity);
+					ShadowComponent* shadow = m_Registry.try_get<ShadowComponent>(entity);
+					Renderer3D::DrawSpotLight(transform.GetTransform(), light, shadow, (int)entity);
 				}
 			}
 
@@ -387,7 +388,8 @@ namespace Mc
 			for (auto entity : spotLightsView)
 			{
 				auto [transform, light] = spotLightsView.get<TransformComponent, SpotLightComponent>(entity);
-				Renderer3D::DrawSpotLight(transform.GetTransform(), light, (int)entity);
+				ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entity);
+				Renderer3D::DrawSpotLight(transform.GetTransform(), light, shadow, (int)entity);
 			}
 		}
 
@@ -685,20 +687,23 @@ namespace Mc
 		// 	m_EntityMap[uuid] = entity;
 		// }
 
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(0.0f, 2.0f, 4.0f);
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(6.0f, 4.0f, 4.0f);
+			transform.Rotation = glm::vec3(-0.5f, 1.0f, 0.0f);
+			
 
-		// 	auto& light = entity.AddComponent<LightComponent>();
-		// 	light.Light.SetType(SceneLight::LightType::Spot);
+			auto& light = entity.AddComponent<SpotLightComponent>();
+			light.Intensity = 10.0f;
+			light.Radius = 20.0f;
 
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "Spot Light";
-		// 	m_EntityMap[uuid] = entity;
-		// }
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Spot Light";
+			m_EntityMap[uuid] = entity;
+		}
 	}
 
 	template <typename T>

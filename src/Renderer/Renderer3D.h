@@ -32,6 +32,7 @@ namespace Mc
 		static void FlushLights();
 		static void FlushPointShadows();
 		static void FlushDirectionalShadows();
+		static void FlushSpotShadows();
 		static void Flush();
 		static void NextBatch();
 		
@@ -46,14 +47,16 @@ namespace Mc
 
 		static void DrawDirectionalLight(const glm::mat4 &transform, DirectionalLightComponent &src, ShadowComponent *shadow, int entityID);
 		static void DrawPointLight(const glm::mat4 &transform, PointLightComponent &src, ShadowComponent *shadow, int entityID);
-		static void DrawSpotLight(const glm::mat4 &transform, SpotLightComponent &src, int entityID);
+		static void DrawSpotLight(const glm::mat4 &transform, SpotLightComponent &src, ShadowComponent *shadow, int entityID);
 
 		static void AddDirectionalShadow(entt::entity entity, unsigned int resolution);
 		static void DelDirectionalShadow(entt::entity entity);
 
 		static void AddPointShadow(entt::entity entity, unsigned int resolution);
 		static void DelPointShadow(entt::entity entity);
-		static void AddSpotShadow();
+
+		static void AddSpotShadow(entt::entity entity, unsigned int resolution);
+		static void DelSpotShadow(entt::entity entity);
 
 		static void DrawHdrSkybox(HdrSkyboxComponent &src, int entityID);
 

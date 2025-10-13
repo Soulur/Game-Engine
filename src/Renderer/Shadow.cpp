@@ -137,4 +137,70 @@ namespace Mc
     {
         return CreateRef<DirectionalShadowMap>(resolution);
     }
+
+    SpotShadowMap::SpotShadowMap(unsigned int resolution)
+        : m_Resolution(resolution)
+    {
+        Init();
+    }
+
+    SpotShadowMap::~SpotShadowMap()
+    {
+        glDeleteFramebuffers(1, &m_DepthMapFBO);
+        glDeleteTextures(1, &m_DepthMap);
+    }
+
+    void SpotShadowMap::Init()
+    {
+        glGenFramebuffers(1, &m_DepthMapFBO);
+        glGenTextures(1, &m_DepthMap);
+
+        glBindTexture(GL_TEXTURE_2D, m_DepthMap);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, m_Resolution, m_Resolution, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, m_DepthMapFBO);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_DepthMap, 0);
+
+        glDrawBuffer(GL_NONE);
+        glReadBuffer(GL_NONE);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        {
+            LOG_CORE_ERROR("Spot Shadow Map FBO is incomplete!");
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    void SpotShadowMap::Bind()
+    {
+        glViewport(0, 0, m_Resolution, m_Resolution);
+        glBindFramebuffer(GL_FRAMEBUFFER, m_DepthMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+    }
+
+    void SpotShadowMap::Unbind()
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    void SpotShadowMap::BindTexture(uint32_t slot)
+    {
+        glActiveTexture(GL_TEXTURE0 + slot);
+        glBindTexture(GL_TEXTURE_2D, m_DepthMap);
+    }
+
+    Ref<SpotShadowMap> SpotShadowMap::Create(unsigned int resolution)
+    {
+        return CreateRef<SpotShadowMap>(resolution);
+    }
 }

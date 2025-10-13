@@ -137,8 +137,12 @@ namespace Mc
 		float Radius;
 		glm::vec3 Direction;
 		float InnerConeCos; // 内锥角的余弦值
-		glm::vec3 pad;
+
+		glm::mat4 LightSpaceMatrix;
 		float OuterConeCos; // 外锥角的余弦值
+		int ShadowMapIndex;
+		int CastsShadows;
+		float padding_0;
 	};
 
 	struct LightData
@@ -276,8 +280,6 @@ namespace Mc
 		// shader
 		Ref<Shader> DirectionalShadowShader;
 
-		Ref<ShaderStorageBuffer> DirectionalShadowInstanceSSBO;
-
 		struct StoredDirectionalShadowCPU
 		{
 			glm::mat4 LightSpaceMatrix;
@@ -289,6 +291,23 @@ namespace Mc
 		std::vector<StoredDirectionalShadowCPU> DirectionalShadows;
 		uint32_t DirectionalShadowTextureSlotIndex = 0;
 		uint32_t DirectionalShadowTextureStart = 0;
+
+		// Spot Shadow
+		std::unordered_map<int, Ref<SpotShadowMap>> SpotShadowMaps;
+		// shader
+		Ref<Shader> SpotShadowShader;
+
+		struct StoredSpotShadowCPU
+		{
+			glm::mat4 LightSpaceMatrix;
+
+			Ref<SpotShadowMap> Shadow;
+			int Slot;
+		};
+
+		std::vector<StoredSpotShadowCPU> SpotShadows;
+		uint32_t SpotShadowTextureSlotIndex = 0;
+		uint32_t SpotShadowTextureStart = 0;
 
 		// Camera
 		// -------------------------------------------------------------------------------
@@ -469,6 +488,57 @@ namespace Mc
 
 			return lightSpaceMatrix;
 		}
+
+		glm::mat4 CalculateSpotLightSpaceMatrix(
+			const glm::vec3 &lightPosition,
+			const glm::vec3 &lightDirection,
+			float lightCutOffAngleRad,
+			float shadowNearPlane,
+			float shadowFarPlane)
+		{
+			glm::vec3 target = lightPosition + lightDirection;
+
+			// b) 定义 Up 向量
+			// 使用鲁棒性检查来防止 lightDirection 与世界Y轴平行时 lookAt 失败
+			glm::vec3 upVector;
+			// 如果光线方向与世界Y轴（0, 1, 0）几乎平行（点积接近1或-1）
+			if (std::abs(glm::dot(lightDirection, glm::vec3(0.0f, 1.0f, 0.0f))) > 0.99f)
+			{
+				// 垂直光线：使用世界Z轴作为Up向量
+				upVector = glm::vec3(0.0f, 0.0f, 1.0f);
+			}
+			else
+			{
+				// 非垂直光线：使用世界Y轴作为Up向量
+				upVector = glm::vec3(0.0f, 1.0f, 0.0f);
+			}
+
+			// Light View Matrix：将世界空间物体转换到以光源为原点，视线对准光线方向的坐标系
+			glm::mat4 lightView = glm::lookAt(
+				lightPosition, // Eye (光源位置)
+				target,		   // Center (看向的目标点)
+				upVector	   // Up (向上向量)
+			);
+			float fovY = lightCutOffAngleRad * 2.0f;
+			float aspectRatio = 1.0f;
+
+			// Light Projection Matrix：使用透视投影来模拟聚光灯的光锥
+			glm::mat4 lightProjection = glm::perspective(
+				fovY,			 // 垂直视野角 (FOV)
+				aspectRatio,	 // 宽高比
+				shadowNearPlane, // 近裁剪面
+				shadowFarPlane	 // 远裁剪面
+			);
+
+			// ------------------------------------------------------------------------
+			// 3. 最终的光空间矩阵
+			// ------------------------------------------------------------------------
+
+			// Light Space Matrix = Light Projection Matrix * Light View Matrix
+			glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+
+			return lightSpaceMatrix;
+		}
 	}
 
 	void Renderer3D::InitSphereGeometry()
@@ -596,6 +666,8 @@ namespace Mc
 
 		s_Data.DirectionalShadowShader = Shader::Create("Assets/shaders/shadow/Renderer3DDirectionalShadowDepthShader.glsl");
 
+		s_Data.SpotShadowShader = Shader::Create("Assets/shaders/shadow/Renderer3DSpotShadowDepthShader.glsl");
+
 		// Texture
 		// -----------------------------------------------------------------
 
@@ -635,11 +707,22 @@ namespace Mc
 		for (uint32_t i = 0; i < s_Data.MAX_DIRECTIONAL_LIGHTS; i++)
 		{
 			samplerDirectionalShadows[i] = shadow_offset++;
-			LOG_CORE_WARN("{0}", samplerDirectionalShadows[i]);
 		}
 
 		s_Data.SphereShader->Bind();
 		s_Data.SphereShader->SetIntArray("u_DirectionalShadowMaps", samplerDirectionalShadows, s_Data.MAX_DIRECTIONAL_LIGHTS);
+		s_Data.SphereShader->Unbind();
+
+		s_Data.SpotShadowTextureStart = shadow_offset;
+
+		int32_t samplerSpotShadows[s_Data.MAX_SPOT_LIGHTS];
+		for (uint32_t i = 0; i < s_Data.MAX_SPOT_LIGHTS; i++)
+		{
+			samplerSpotShadows[i] = shadow_offset++;
+		}
+
+		s_Data.SphereShader->Bind();
+		s_Data.SphereShader->SetIntArray("u_SpotShadowMaps", samplerSpotShadows, s_Data.MAX_SPOT_LIGHTS);
 		s_Data.SphereShader->Unbind();
 
 		// Add Material 0
@@ -710,6 +793,7 @@ namespace Mc
 		// Light SSBO
 		Renderer3D::FlushPointShadows();
 		Renderer3D::FlushDirectionalShadows();
+		Renderer3D::FlushSpotShadows();
 		Renderer3D::FlushLights();
 
 		Flush();
@@ -725,6 +809,9 @@ namespace Mc
 
 		s_Data.DirectionalShadows.clear();
 		s_Data.DirectionalShadowTextureSlotIndex = 0;
+
+		s_Data.SpotShadows.clear();
+		s_Data.SpotShadowTextureSlotIndex = 0;
 
 		// clear obj tranform data
 		s_Data.ProjectionShadowDatas.SphereTranformDatas.clear();
@@ -808,7 +895,7 @@ namespace Mc
 				// --- 启用并设置深度偏移 ---
 				// 启用多边形偏移
 				glEnable(GL_POLYGON_OFFSET_FILL);
-				glPolygonOffset(2.0f, 4.0f);
+				glPolygonOffset(4.0f, 10.0f);
 
 				s_Data.PointShadowShader->SetInt("u_Slot", data.Slot);
 
@@ -854,7 +941,7 @@ namespace Mc
 				// --- 启用并设置深度偏移 ---
 				// 启用多边形偏移
 				glEnable(GL_POLYGON_OFFSET_FILL);
-				glPolygonOffset(2.0f, 4.0f);
+				glPolygonOffset(4.0f, 10.0f);
 
 				s_Data.DirectionalShadowShader->SetMat4("u_LightSpaceMatrix", data.LightSpaceMatrix);
 
@@ -876,6 +963,51 @@ namespace Mc
 				// --- 状态恢复结束 ---
 
 				data.Shadow->BindTexture(data.Slot + s_Data.DirectionalShadowTextureStart);
+			}
+		}
+	}
+
+    void Renderer3D::FlushSpotShadows()
+    {
+		// Bind shadow
+		{
+			for (auto data : s_Data.SpotShadows)
+			{
+				// --- 状态保存 ---
+				GLint viewport[4];
+				glGetIntegerv(GL_VIEWPORT, viewport);
+				GLint currentFBO;
+				glGetIntegerv(GL_FRAMEBUFFER_BINDING, &currentFBO);
+				// --- 状态保存结束 ---
+
+				data.Shadow->Bind();
+				s_Data.SpotShadowShader->Bind();
+
+				// --- 启用并设置深度偏移 ---
+				// 启用多边形偏移
+				glEnable(GL_POLYGON_OFFSET_FILL);
+				glPolygonOffset(4.0f, 10.0f);
+
+				s_Data.SpotShadowShader->SetMat4("u_LightSpaceMatrix", data.LightSpaceMatrix);
+
+				for (auto &tranform : s_Data.ProjectionShadowDatas.SphereTranformDatas)
+				{
+					s_Data.SpotShadowShader->SetMat4("u_Model", tranform);
+					s_Data.DefaultSphereMesh->GetVertexArray()->Bind();
+					glDrawElements(GL_TRIANGLE_STRIP, s_Data.DefaultSphereMesh->GetIndexCount(), GL_UNSIGNED_INT, 0);
+				}
+
+				glDisable(GL_POLYGON_OFFSET_FILL);
+
+				data.Shadow->Unbind();
+				s_Data.SpotShadowShader->Unbind();
+
+				// --- 状态恢复 ---
+				glBindFramebuffer(GL_FRAMEBUFFER, currentFBO);
+				glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+				// --- 状态恢复结束 ---
+
+				data.Shadow->BindTexture(data.Slot + s_Data.SpotShadowTextureStart);
 			}
 		}
 	}
@@ -1187,7 +1319,7 @@ namespace Mc
 		}
 	}
 
-	void Renderer3D::DrawSpotLight(const glm::mat4 &transform, SpotLightComponent &src, int entityID)
+	void Renderer3D::DrawSpotLight(const glm::mat4 &transform, SpotLightComponent &src, ShadowComponent *shadow, int entityID)
 	{
 		if (s_Data.SpotLights.size() < Renderer3DData::MAX_SPOT_LIGHTS)
 		{
@@ -1203,10 +1335,34 @@ namespace Mc
 
 			spLight.InnerConeCos = glm::cos(src.InnerConeAngle); // GLSL 内边界使用外锥角
 			spLight.OuterConeCos = glm::cos(src.OuterConeAngle); // GLSL 外边界使用内锥角
-			spLight.pad = glm::vec3(0.0f);
-			s_Data.SpotLights.push_back(spLight);
 
-			// LOG_CORE_ERROR("{0}, {1}, {2}", spLight.Color.r, spLight.Color.g, spLight.Color.b);
+			spLight.CastsShadows = (int)src.CastsShadows;
+			spLight.padding_0 = 0.0f;
+
+			auto it = s_Data.SpotShadowMaps.find(entityID);
+			if (it != s_Data.SpotShadowMaps.end())
+			{
+				glm::mat4 lightSpaceMatrix = Utils::CalculateSpotLightSpaceMatrix(position, direction, src.OuterConeAngle, shadow->NearPlane, shadow->FarPlane);
+				// ================================================
+
+				spLight.LightSpaceMatrix = lightSpaceMatrix;
+				spLight.ShadowMapIndex = s_Data.SpotShadowTextureSlotIndex;
+
+				Renderer3DData::StoredSpotShadowCPU data;
+
+				data.LightSpaceMatrix = lightSpaceMatrix;
+				data.Shadow = it->second;
+				data.Slot = s_Data.SpotShadowTextureSlotIndex;
+
+				s_Data.SpotShadows.push_back(data);
+				s_Data.SpotShadowTextureSlotIndex++;
+			}
+			else
+			{
+				spLight.LightSpaceMatrix = glm::mat4(0.0);
+				spLight.ShadowMapIndex = -1;
+			}
+			s_Data.SpotLights.push_back(spLight);
 		}
 		else
 		{
@@ -1242,7 +1398,21 @@ namespace Mc
 			s_Data.PointShadowMaps.erase(it);
 	}
 
-	void Renderer3D::DrawHdrSkybox(HdrSkyboxComponent &src, int entityID)
+    void Renderer3D::AddSpotShadow(entt::entity entity, unsigned int resolution)
+    {
+		auto it = s_Data.SpotShadowMaps.find((int)entity);
+		if (it == s_Data.SpotShadowMaps.end())
+			s_Data.SpotShadowMaps[(int)entity] = SpotShadowMap::Create(resolution);
+	}
+
+	void Renderer3D::DelSpotShadow(entt::entity entity)
+	{
+		auto it = s_Data.SpotShadowMaps.find((int)entity);
+		if (it != s_Data.SpotShadowMaps.end())
+			s_Data.SpotShadowMaps.erase(it);
+	}
+
+    void Renderer3D::DrawHdrSkybox(HdrSkyboxComponent &src, int entityID)
 	{
 		HdrManager::Get().SetActive(src.Path);
 		s_Data.HdrSkybox = HdrManager::Get().GetActive();

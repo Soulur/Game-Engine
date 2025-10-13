@@ -217,8 +217,13 @@ struct SpotLight {
     float radius;
     vec3 direction; // 世界空间方向 (光源自身指向的方向)
     float innerConeCos; // 内锥角的余弦值 (cos(OuterConeAngle))
-    vec3 pad;
-    float outerConeCos; // 外锥角的余弦值 (cos(InnerConeAngle))
+    
+
+    mat4 LightSpaceMatrix;
+	float outerConeCos; // 外锥角的余弦值 (cos(InnerConeAngle))
+    int ShadowMapIndex;
+    int CastsShadows;
+    float padding_0;
 };
 
 // SSBO Light
@@ -284,6 +289,7 @@ vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 // ----------------------------------------------------------------------------
 uniform samplerCube u_PointShadowDepthMaps[MAXLIGHTS];
 uniform sampler2D u_DirectionalShadowMaps[MAXLIGHTS];
+uniform sampler2D u_SpotShadowMaps[MAXLIGHTS];
 
 vec3 gridSamplingDisk[20] = vec3[]
 (
@@ -294,18 +300,18 @@ vec3 gridSamplingDisk[20] = vec3[]
    vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
 );
 
-float ShadowCalculation(vec3 fragPos, vec3 lightPos, float farPlane, int shadowMapIndex)
+float CalculatePointShadow(vec3 fragPos, vec3 lightPos, float farPlane, int shadowMapIndex)
 {
     // 从片元指向光源的向量
     vec3 fragToLight = fragPos - lightPos;
     
     // 当前片元到光源的距离
     float currentDepth = length(fragToLight);
-    
+
     // 动态偏置，基于法线和光线夹角
-    // vec3 l = normalize(lightPos - fragPos);
-    // float bias = max(0.01 * (1.0 - dot(n, l)), 0.001);
-    float bias = 0.15;
+    vec3 n = normalize(fs_in.NormalWS);
+    vec3 l = normalize(lightPos - fragPos);
+    float bias = max(0.01 * (1.0 - dot(n, l)), 0.005);
 
     float shadow = 0.0;
     int samples = 20;
@@ -338,10 +344,11 @@ float ShadowCalculation(vec3 fragPos, vec3 lightPos, float farPlane, int shadowM
 }
 
 
-float CalculateDirectionalShadow(vec3 fragPos, vec3 lightPos, mat4 lightSpaceMatrix, int shadowMapIndex) 
+float CalculateDirectionalShadow(vec3 fragPos, vec3 lightDirection, mat4 lightSpaceMatrix, int shadowMapIndex) 
 { 
     vec4 lightSpacePos = lightSpaceMatrix * vec4(fragPos, 1.0); 
-    vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w; 
+    // vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w; 
+    vec3 projCoords = lightSpacePos.xyz; 
     projCoords = projCoords * 0.5 + 0.5; 
 
     if (projCoords.x > 1.0 || projCoords.x < 0.0 ||  
@@ -353,10 +360,9 @@ float CalculateDirectionalShadow(vec3 fragPos, vec3 lightPos, mat4 lightSpaceMat
     
     float closestDepth = texture(u_DirectionalShadowMaps[shadowMapIndex], projCoords.xy).r; 
     float currentDepth = projCoords.z;
-    vec3 normal = normalize(fs_in.NormalWS);
-    vec3 lightDir = normalize(lightPos - fragPos);
-    float bias = 0.005;  // 可以根据场景调整
-    // float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+    vec3 n = normalize(fs_in.NormalWS);
+    vec3 l = normalize(lightDirection);
+    float bias = max(0.01 * (1.0 - dot(n, l)), 0.005);
 
     // --- PCF (Percentage Closer Filtering) 采样 ---
     float shadow = 0.0;
@@ -370,6 +376,47 @@ float CalculateDirectionalShadow(vec3 fragPos, vec3 lightPos, mat4 lightSpaceMat
         for (int y = -1; y <= 1; ++y)
         {
             float pcfDepth = texture(u_DirectionalShadowMaps[shadowMapIndex], projCoords.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth > pcfDepth + bias ? 1.0 : 0.0;
+        }    
+    }
+    // 平均化阴影值 (0.0 表示全阴影，1.0 表示全光照)
+    shadow /= float(samples);
+    
+    return shadow;
+}
+
+float CalculateSpotShadow(vec3 fragPos, vec3 lightPos, mat4 lightSpaceMatrix, int shadowMapIndex) 
+{ 
+    vec4 lightSpacePos = lightSpaceMatrix * vec4(fragPos, 1.0); 
+    vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w; 
+    projCoords = projCoords * 0.5 + 0.5; 
+
+    if (projCoords.x > 1.0 || projCoords.x < 0.0 ||  
+        projCoords.y > 1.0 || projCoords.y < 0.0 ||  
+        projCoords.z > 1.0 || projCoords.z < 0.0) 
+    { 
+        return 1.0;
+    }
+    
+    float closestDepth = texture(u_SpotShadowMaps[shadowMapIndex], projCoords.xy).r; 
+    float currentDepth = projCoords.z;
+    
+    vec3 n = normalize(fs_in.NormalWS);
+    vec3 l = normalize(lightPos - fragPos);
+    float bias = max(0.01 * (1.0 - dot(n, l)), 0.005);
+
+    // --- PCF (Percentage Closer Filtering) 采样 ---
+    float shadow = 0.0;
+    // vec2 texelSize = vec2(1.0 / 2048.0);
+    vec2 texelSize = 1.0 / textureSize(u_SpotShadowMaps[shadowMapIndex], 0);
+    int samples = 9;
+    
+    // 3x3 采样循环
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            float pcfDepth = texture(u_SpotShadowMaps[shadowMapIndex], projCoords.xy + vec2(x, y) * texelSize).r;
             shadow += currentDepth > pcfDepth + bias ? 1.0 : 0.0;
         }    
     }
@@ -548,7 +595,7 @@ void main()
                     float shadow = 0.0;
                     if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)
                     {
-                        shadow = ShadowCalculation(fs_in.WorldPos, light.position, light.FarPlane, light.ShadowMapIndex);
+                        shadow = CalculatePointShadow(fs_in.WorldPos, light.position, light.FarPlane, light.ShadowMapIndex);
                     }
 
                     Lo += directLightContribution * (1.0 - shadow);
@@ -597,7 +644,13 @@ void main()
                     // vec3 radiance = vec3(1.0f) * light.intensity;
                     vec3 directLightContribution = (kD * albedo / PI + specular) * radiance * NdotL * attenuation * spotFactor;
 
-                    Lo += directLightContribution;
+                    float shadow = 0.0;
+                    if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)
+                    {
+                        shadow = CalculateSpotShadow(fs_in.WorldPos, light.position, light.LightSpaceMatrix, light.ShadowMapIndex);
+                    }
+
+                    Lo += directLightContribution * (1.0 - shadow);
                 }
             }
 
@@ -682,25 +735,52 @@ void main()
     
     o_Color = vec4(finalColor, alpha);
     
+    // vec3 NTemp = normalize(fs_in.NormalWS);
+    // vec3 colorTemp = NTemp * 0.5 + 0.5;
+    // o_Color = vec4(colorTemp, 1.0);
+
     // float tttDepth = 1.0;
+
     // for (int i = 0; i < NumPointLights; ++i)
     // {
     //     PointLight light = PointLights[i];
-    //     if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)
-    //         tttDepth *= 1.0 - ShadowCalculation(fs_in.WorldPos, light.position, light.FarPlane, light.ShadowMapIndex);
+    //     vec3 lightToPixel = light.position - fs_in.WorldPos;
+    //     vec3 N = normalize(fs_in.NormalWS);
+    //     vec3 L = normalize(lightToPixel);
+    //     float NdotL = max(dot(N, L), 0.0);
+    //     if (NdotL > 0.0)
+    //         if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)
+    //             tttDepth *= 1.0 - CalculatePointShadow(fs_in.WorldPos, light.position, light.FarPlane, light.ShadowMapIndex);
     // }
 
-    // float tttDepth = 1.0;
     // for (int i = 0; i < NumDirectionalLights; ++i)
     // {
     //     DirectionalLight light = DirectionalLights[i];
-    //     if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)
-    //     {
-    //         float shadow = CalculateDirectionalShadow(fs_in.WorldPos, light.LightSpaceMatrix, light.ShadowMapIndex);
-    //         tttDepth *= (1.0 - shadow);
-    //     }
+    //     vec3 N = normalize(fs_in.NormalWS);
+    //     vec3 L = normalize(-light.direction);
+    //     float NdotL = max(dot(N, L), 0.0);
+    //     if (NdotL > 0.0)
+    //         if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)
+    //         {
+    //             float shadow = CalculateDirectionalShadow(fs_in.WorldPos, light.direction, light.LightSpaceMatrix, light.ShadowMapIndex);
+    //             tttDepth *= (1.0 - shadow);
+    //         }
     // }
-
+    
+    // for (int i = 0; i < NumSpotLights; ++i)
+    // {
+    //     SpotLight light = SpotLights[i];
+    //     vec3 lightToPixel = light.position - fs_in.WorldPos;
+    //     vec3 N = normalize(fs_in.NormalWS);
+    //     vec3 L = normalize(lightToPixel);
+    //     float NdotL = max(dot(N, L), 0.0);
+    //     if (NdotL > 0.0)
+    //         if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)
+    //         {
+    //             float shadow = CalculateSpotShadow(fs_in.WorldPos, light.position, light.LightSpaceMatrix, light.ShadowMapIndex);
+    //             tttDepth *= (1.0 - shadow);
+    //         }
+    // }
 
     // o_Color = vec4(vec3(tttDepth), 1.0);
 

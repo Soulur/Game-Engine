@@ -464,7 +464,7 @@ namespace Mc {
 			}
 		});
 
-		DrawComponent<SpotLightComponent>("Spot Light", entity, [](auto &component)
+		DrawComponent<SpotLightComponent>("Spot Light", entity, [this](auto &component)
 		{
 			ImGui::Text("Spot Light Properties");
 
@@ -472,15 +472,38 @@ namespace Mc {
 			ImGui::DragFloat("Intensity", &component.Intensity, 0.1f, 0.0f, 10.0f, "%.1f");
 			ImGui::DragFloat("Radius", &component.Radius, 0.1f, 0.1f, 500.0f, "%.1f");
 
-			// 内锥角
 			float innerConeAngle = glm::degrees(component.InnerConeAngle);
 			if (ImGui::DragFloat("InnerConeAngle (Deg)", &innerConeAngle, 0.1f, 0.0f, 89.0f, "%.1f"))
+			{
+				if (innerConeAngle > glm::degrees(component.OuterConeAngle))
+					innerConeAngle = glm::min(innerConeAngle, glm::degrees(component.OuterConeAngle) - 1.0f);
 				component.InnerConeAngle = glm::radians(innerConeAngle);
+			}
 
-			// 外锥角
 			float outerConeAngle = glm::degrees(component.OuterConeAngle);
 			if (ImGui::DragFloat("OuterConeAngle (Deg)", &outerConeAngle, 0.1f, 1.0f, 90.0f, "%.1f"))
+			{
+				if (outerConeAngle < glm::degrees(component.InnerConeAngle))
+					outerConeAngle = glm::degrees(component.InnerConeAngle) + 1.0f;
 				component.OuterConeAngle = glm::radians(outerConeAngle);
+			}
+			
+			ImGui::Checkbox("Casts Shadows", &component.CastsShadows);
+
+			if (component.CastsShadows)
+			{
+				if (!m_SelectionContext.HasComponent<ShadowComponent>())
+				{
+					m_SelectionContext.AddComponent<ShadowComponent>();
+				}
+			}
+			else
+			{
+				if (m_SelectionContext.HasComponent<ShadowComponent>())
+				{
+					m_SelectionContext.RemoveComponent<ShadowComponent>();
+				}
+			}
 		});
 
 		DrawComponent<ShadowComponent>("Shadow Renderer", entity, [](auto &component)

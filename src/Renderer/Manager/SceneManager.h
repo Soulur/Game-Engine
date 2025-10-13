@@ -31,12 +31,20 @@ namespace Mc
                 LOG_CORE_ERROR("1");
             }
 
-            LOG_CORE_ERROR("2");
             if (registry.any_of<DirectionalLightComponent>(entity))
             {
                 auto &light = registry.get<DirectionalLightComponent>(entity);
                 auto &shadow = registry.get<ShadowComponent>(entity);
                 Renderer3D::AddDirectionalShadow(entity, shadow.Resolution);
+                LOG_CORE_ERROR("2");
+            }
+
+            if (registry.any_of<SpotLightComponent>(entity))
+            {
+                auto &light = registry.get<SpotLightComponent>(entity);
+                auto &shadow = registry.get<ShadowComponent>(entity);
+                Renderer3D::AddSpotShadow(entity, shadow.Resolution);
+                LOG_CORE_ERROR("3");
             }
         }
 
@@ -56,6 +64,14 @@ namespace Mc
                 auto &shadow = registry.get<ShadowComponent>(entity);
                 Renderer3D::DelDirectionalShadow(entity);
                 LOG_CORE_ERROR("-1");
+            }
+
+            if (registry.any_of<SpotLightComponent>(entity))
+            {
+                auto &light = registry.get<SpotLightComponent>(entity);
+                auto &shadow = registry.get<ShadowComponent>(entity);
+                Renderer3D::DelSpotShadow(entity);
+                LOG_CORE_ERROR("-2");
             }
         }
     };
