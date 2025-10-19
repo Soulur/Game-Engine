@@ -141,6 +141,8 @@ namespace Mc
 		bool ReceivesPBR = false;
 		bool ReceivesIBL = false;
 		bool ReceivesLight = false;
+		bool ReceivesShadow = false;
+		bool ProjectionShadow = false;
 
 		bool GammaCorrection = false;
 

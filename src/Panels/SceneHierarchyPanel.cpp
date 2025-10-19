@@ -628,6 +628,8 @@ namespace Mc {
 			ImGui::Checkbox("ReceivesPBR", &component.ReceivesPBR);
 			ImGui::Checkbox("ReceivesIBL", &component.ReceivesIBL);
 			ImGui::Checkbox("ReceivesLight", &component.ReceivesLight);
+			ImGui::Checkbox("ReceivesShadow", &component.ReceivesShadow);
+			ImGui::Checkbox("ProjectionShadow", &component.ProjectionShadow);
 
 			ImGui::Checkbox("GammaCorrection", &component.GammaCorrection);
 		});

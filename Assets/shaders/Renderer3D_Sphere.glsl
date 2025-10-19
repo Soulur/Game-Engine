@@ -202,7 +202,6 @@ struct PointLight {
     float intensity;
     vec3 color;
     float radius; // 影响半径
-
     
 	int CastsShadows;
 	float FarPlane;
@@ -541,8 +540,6 @@ void main()
                     // 光照贡献
                     vec3 radiance = light.color * light.intensity;
                     vec3 directLightContribution = (kD * albedo / PI + specular) * radiance * NdotL;
-
-                    // Lo += directLightContribution;
 
                     float shadow = 0.0;
                     if (fs_in.ReceivesShadow == 1 && light.CastsShadows == 1)

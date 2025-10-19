@@ -681,15 +681,53 @@ namespace Mc
 			m_EntityMap[uuid] = entity;
 		}
 
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	auto &transform = entity.AddComponent<TransformComponent>();
+		// 	transform.Translation = glm::vec3(0.0f, 0.0f, 0.0f);
+
+		// 	auto &obj = entity.AddComponent<ModelRendererComponent>();
+		// 	obj.ModelPath = "Assets/objs/Spaceship/Spaceship.obj";
+		// 	obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
+		// 	{
+		// 		auto &hierarchy = entity.AddComponent<HierarchyComponent>();
+		// 		for (Ref<Mesh> &obj : obj.Model->GetMeshs())
+		// 		{
+		// 			Entity subEntity = entity.CreateChild(obj->GetName());
+		// 			auto &mesh = subEntity.AddComponent<MeshRendererComponent>();
+		// 			mesh.Id = obj->GetID();
+		// 			hierarchy.Children.push_back(subEntity.GetUUID());
+
+		// 			mesh.IsMaterial = true;
+		// 			subEntity.AddComponent<MaterialComponent>();
+		// 			auto &material = subEntity.GetComponent<MaterialComponent>();
+		// 			material.AlbedoMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_color_4.jpg";
+		// 			material.NormalMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_nmap_2_Tris.jpg";
+		// 			material.MetallicMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_metalness.jpg";
+		// 			material.RoughnessMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_rough.jpg";
+		// 			material.AmbientOcclusionMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship Ao_Blender.jpg";
+		// 			material.EmissiveMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_emi.jpg";
+		// 		}
+
+		// 		auto &tag = entity.AddComponent<TagComponent>();
+		// 		tag.Tag = "obj Model 1";
+
+		// 		m_EntityMap[uuid] = entity;
+		// 	}
+		// }
+
 		{
 			auto uuid = UUID();
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
 			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(0.0f, 0.0f, 0.0f);
+			transform.Translation = glm::vec3(0.0f, -5.0f, 0.0f);
+			transform.Scale = glm::vec3(0.1f);
 
 			auto &obj = entity.AddComponent<ModelRendererComponent>();
-			obj.ModelPath = "Assets/objs/Spaceship/Spaceship.obj";
+			obj.ModelPath = "Assets/objs/floor-material/source/plane.fbx";
 			obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
 			{
 				auto &hierarchy = entity.AddComponent<HierarchyComponent>();
@@ -703,16 +741,14 @@ namespace Mc
 					mesh.IsMaterial = true;
 					subEntity.AddComponent<MaterialComponent>();
 					auto &material = subEntity.GetComponent<MaterialComponent>();
-					material.AlbedoMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_color_4.jpg";
-					material.NormalMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_nmap_2_Tris.jpg";
-					material.MetallicMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_metalness.jpg";
-					material.RoughnessMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_rough.jpg";
-					material.AmbientOcclusionMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship Ao_Blender.jpg";
-					material.EmissiveMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_emi.jpg";
+					material.AlbedoMap = "Assets/objs/floor-material/textures/Floortile1Color.png";
+					material.NormalMap = "Assets/objs/floor-material/textures/Floortile1Normal.png";
+					material.RoughnessMap = "Assets/objs/floor-material/textures/Floortile1Roughness.png";
+					material.AmbientOcclusionMap = "Assets/objs/floor-material/textures/Floortile1AO.png";
 				}
 
 				auto &tag = entity.AddComponent<TagComponent>();
-				tag.Tag = "obj Model 1";
+				tag.Tag = "obj Model 2";
 
 				m_EntityMap[uuid] = entity;
 			}

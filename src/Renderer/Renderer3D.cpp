@@ -96,7 +96,7 @@ namespace Mc
 		int ReceivesPBR;
 		int ReceivesIBL;
 		int ReceivesLight;
-		int padding_0;
+		int ReceivesShadow;
 	};
 
 	static_assert(sizeof(MeshInstanceData) % 16 == 0, "MeshInstanceData size mismatch for std140 layout!");
@@ -247,9 +247,11 @@ namespace Mc
 		// -------------------------------------------------------------------------------
 		struct ProjectionShadowData
 		{
-			std::vector<glm::mat4> SphereTranformDatas;
+			glm::mat4 Transform;
+			uint32_t VertexArrayID = 0;
+			uint32_t IndexCount = 0;
 		};
-	 	ProjectionShadowData ProjectionShadowDatas;
+		std::vector<ProjectionShadowData> ProjectionShadowDatas;
 
 		// Point Shadow
 		std::unordered_map<int, Ref<PointShadowMap>> PointShadowMaps;
@@ -716,7 +718,7 @@ namespace Mc
 		// Creare Shader
 		// -----------------------------------------------------------------
 		s_Data.SphereShader = Shader::Create("Assets/shaders/Renderer3D_Sphere.glsl");
-		s_Data.ModelShader = Shader::Create("Assets/shaders/model.glsl");
+		s_Data.ModelShader = Shader::Create("Assets/shaders/Renderer3D_Model.glsl");
 
 		s_Data.PointShadowShader = Shader::Create("Assets/shaders/shadow/Renderer3DPointShadowDepthShader.glsl");
 
@@ -757,6 +759,10 @@ namespace Mc
 		s_Data.SphereShader->SetIntArray("u_PointShadowDepthMaps", samplerPointShadows, s_Data.MAX_POINT_LIGHTS);
 		s_Data.SphereShader->Unbind();
 
+		s_Data.ModelShader->Bind();
+		s_Data.ModelShader->SetIntArray("u_PointShadowDepthMaps", samplerPointShadows, s_Data.MAX_POINT_LIGHTS);
+		s_Data.ModelShader->Unbind();
+
 		s_Data.DirectionalShadowTextureStart = shadow_offset;
 
 		int32_t samplerDirectionalShadows[s_Data.MAX_DIRECTIONAL_LIGHTS];
@@ -769,6 +775,10 @@ namespace Mc
 		s_Data.SphereShader->SetIntArray("u_DirectionalShadowMaps", samplerDirectionalShadows, s_Data.MAX_DIRECTIONAL_LIGHTS);
 		s_Data.SphereShader->Unbind();
 
+		s_Data.ModelShader->Bind();
+		s_Data.ModelShader->SetIntArray("u_DirectionalShadowMaps", samplerDirectionalShadows, s_Data.MAX_DIRECTIONAL_LIGHTS);
+		s_Data.ModelShader->Unbind();
+
 		s_Data.SpotShadowTextureStart = shadow_offset;
 
 		int32_t samplerSpotShadows[s_Data.MAX_SPOT_LIGHTS];
@@ -780,6 +790,10 @@ namespace Mc
 		s_Data.SphereShader->Bind();
 		s_Data.SphereShader->SetIntArray("u_SpotShadowMaps", samplerSpotShadows, s_Data.MAX_SPOT_LIGHTS);
 		s_Data.SphereShader->Unbind();
+
+		s_Data.ModelShader->Bind();
+		s_Data.ModelShader->SetIntArray("u_SpotShadowMaps", samplerSpotShadows, s_Data.MAX_SPOT_LIGHTS);
+		s_Data.ModelShader->Unbind();
 
 		// Add Material 0
 		MaterialManager::Get().AddMaterial();
@@ -870,7 +884,7 @@ namespace Mc
 		s_Data.SpotShadowTextureSlotIndex = 0;
 
 		// clear obj tranform data
-		s_Data.ProjectionShadowDatas.SphereTranformDatas.clear();
+		s_Data.ProjectionShadowDatas.clear();
 
 		// clear hdr
 		s_Data.HdrSkybox->Unbind();
@@ -955,11 +969,11 @@ namespace Mc
 
 				s_Data.PointShadowShader->SetInt("u_Slot", data.Slot);
 
-				for (auto &tranform : s_Data.ProjectionShadowDatas.SphereTranformDatas)
+				for (auto &mesh : s_Data.ProjectionShadowDatas)
 				{
-					s_Data.PointShadowShader->SetMat4("u_Model", tranform);
-					s_Data.DefaultSphereMesh->GetVertexArray()->Bind();
-					glDrawElements(GL_TRIANGLE_STRIP, s_Data.DefaultSphereMesh->GetIndexCount(), GL_UNSIGNED_INT, 0);
+					s_Data.PointShadowShader->SetMat4("u_Model", mesh.Transform);
+					glBindVertexArray(mesh.VertexArrayID);
+					glDrawElements(GL_TRIANGLE_STRIP, mesh.IndexCount, GL_UNSIGNED_INT, 0);
 				}
 
 
@@ -1001,11 +1015,11 @@ namespace Mc
 
 				s_Data.DirectionalShadowShader->SetMat4("u_LightSpaceMatrix", data.LightSpaceMatrix);
 
-				for (auto &tranform : s_Data.ProjectionShadowDatas.SphereTranformDatas)
+				for (auto &mesh : s_Data.ProjectionShadowDatas)
 				{
-					s_Data.DirectionalShadowShader->SetMat4("u_Model", tranform);
-					s_Data.DefaultSphereMesh->GetVertexArray()->Bind();
-					glDrawElements(GL_TRIANGLE_STRIP, s_Data.DefaultSphereMesh->GetIndexCount(), GL_UNSIGNED_INT, 0);
+					s_Data.DirectionalShadowShader->SetMat4("u_Model", mesh.Transform);
+					glBindVertexArray(mesh.VertexArrayID);
+					glDrawElements(GL_TRIANGLE_STRIP, mesh.IndexCount, GL_UNSIGNED_INT, 0);
 				}
 
 				glDisable(GL_POLYGON_OFFSET_FILL);
@@ -1046,11 +1060,11 @@ namespace Mc
 
 				s_Data.SpotShadowShader->SetMat4("u_LightSpaceMatrix", data.LightSpaceMatrix);
 
-				for (auto &tranform : s_Data.ProjectionShadowDatas.SphereTranformDatas)
+				for (auto &mesh : s_Data.ProjectionShadowDatas)
 				{
-					s_Data.SpotShadowShader->SetMat4("u_Model", tranform);
-					s_Data.DefaultSphereMesh->GetVertexArray()->Bind();
-					glDrawElements(GL_TRIANGLE_STRIP, s_Data.DefaultSphereMesh->GetIndexCount(), GL_UNSIGNED_INT, 0);
+					s_Data.SpotShadowShader->SetMat4("u_Model", mesh.Transform);
+					glBindVertexArray(mesh.VertexArrayID);
+					glDrawElements(GL_TRIANGLE_STRIP, mesh.IndexCount, GL_UNSIGNED_INT, 0);
 				}
 
 				glDisable(GL_POLYGON_OFFSET_FILL);
@@ -1156,7 +1170,13 @@ namespace Mc
 
 		if (src.ProjectionShadow)
 		{
-			s_Data.ProjectionShadowDatas.SphereTranformDatas.push_back(transform);
+			auto id = s_Data.DefaultSphereMesh->GetVertexArray()->GetRendererID();
+			auto count = s_Data.DefaultSphereMesh->GetVertexArray()->GetIndexBuffer()->GetCount();
+			s_Data.ProjectionShadowDatas.push_back({
+				transform,
+				id,
+				count
+			});
 		}
 
 		glm::vec4 albedo = glm::vec4(1.0f);
@@ -1216,6 +1236,36 @@ namespace Mc
 		if (src.ModelPath.empty())
 			return;
 
+		// 创建一个用于哈希表的键
+		Renderer3DData::ModelCallKey key;
+		key.MeshID = mesh->Id;
+
+		Renderer3DData::ModelCallBatch &batch = s_Data.ModelDrawCallBatches[key];
+
+		if (batch.InstanceSSBO == nullptr)
+		{
+			batch.InstanceSSBO = ShaderStorageBuffer::Create(Renderer3DData::MaxInstancesPerModel * sizeof(MeshInstanceData));
+			batch.Instances.reserve(Renderer3DData::MaxInstancesPerModel);
+		}
+
+		if (batch.InstanceCount >= Renderer3DData::MaxInstancesPerModel)
+		{
+			NextBatch();
+		}
+
+		if (src.ProjectionShadow)
+		{
+			auto data = MeshManager::Get().GetMeshByID(mesh->Id);
+			auto id = data->GetVertexArray()->GetRendererID();
+			auto count = data->GetIndexBuffer()->GetCount();
+
+			s_Data.ProjectionShadowDatas.push_back({
+				transform,
+				id,
+				count,
+			});
+		}
+
 		glm::vec4 albedo = glm::vec4(1.0f);
 		glm::vec4 emissive = glm::vec4(0.0f);
 
@@ -1233,23 +1283,6 @@ namespace Mc
 			roughness = material->Roughness;
 			metallic = material->Metallic;
 			ao = material->Ao;
-		}
-
-		// 创建一个用于哈希表的键
-		Renderer3DData::ModelCallKey key;
-		key.MeshID = mesh->Id;
-
-		Renderer3DData::ModelCallBatch &batch = s_Data.ModelDrawCallBatches[key];
-
-		if (batch.InstanceSSBO == nullptr)
-		{
-			batch.InstanceSSBO = ShaderStorageBuffer::Create(Renderer3DData::MaxInstancesPerModel * sizeof(MeshInstanceData));
-			batch.Instances.reserve(Renderer3DData::MaxInstancesPerModel);
-		}
-
-		if (batch.InstanceCount >= Renderer3DData::MaxInstancesPerModel)
-		{
-			NextBatch();
 		}
 
 		// 填充实例数据
@@ -1278,7 +1311,7 @@ namespace Mc
 			(int)src.ReceivesPBR,
 			(int)src.ReceivesIBL,
 			(int)src.ReceivesLight,
-			0,
+			(int)src.ReceivesShadow,
 		};
 
 		batch.Instances.push_back(instanceData);

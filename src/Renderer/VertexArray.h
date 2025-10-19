@@ -17,6 +17,7 @@ namespace Mc
         void AddVertexBuffer(const Ref<VertexBuffer> &vertexBuffer);
         void SetIndexBuffer(const Ref<IndexBuffer> &indexBuffer);
 
+        const uint32_t GetRendererID() const { return m_RendererID; }
         const std::vector<Ref<VertexBuffer>> &GetVertexBuffers() const { return m_VertexBuffers; }
         const Ref<IndexBuffer> &GetIndexBuffer() const { return m_IndexBuffer; }
 
