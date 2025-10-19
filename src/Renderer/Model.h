@@ -25,11 +25,8 @@ namespace Mc
         std::string GetPath() { return m_Path; }
         
         std::vector<Ref<Mesh>> GetMeshs() { return m_Meshes; }
-        std::vector<Ref<Material>> GetMaterials()  { return m_Materials; }
 
     private:
-        void LoadAllSceneMaterials(const aiScene *scene);
-
         void LoadModel(const std::filesystem::path &path);
 
         void ProcessNode(aiNode *node, const aiScene *scene);
@@ -40,8 +37,6 @@ namespace Mc
     private:
         std::string m_Path;
         std::vector<Ref<Mesh>> m_Meshes;
-
-        std::vector<Ref<Material>> m_Materials;
 
         std::filesystem::path m_Directory;
         bool m_IsLoaded = false;

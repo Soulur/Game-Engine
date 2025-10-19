@@ -15,13 +15,16 @@ namespace Mc
         SceneManager(entt::registry &registry)
         {
             
-            registry.on_construct<ShadowComponent>().connect<&SceneManager::OnPointShadowCreated>(this);
-            registry.on_destroy<ShadowComponent>().connect<&SceneManager::OnPointShadowDestroyed>(this);
+            registry.on_construct<ShadowComponent>().connect<&SceneManager::OnShadowCreated>(this);
+            registry.on_destroy<ShadowComponent>().connect<&SceneManager::OnShadowDestroyed>(this);
+
+            // registry.on_construct<MaterialComponent>().connect<&SceneManager::OnMaterialCreated>(this);
+            // registry.on_destroy<MaterialComponent>().connect<&SceneManager::OnMaterialDestroyed>(this);
         }
 
         static Scope<SceneManager> Create(entt::registry &registry);
     private:
-        void OnPointShadowCreated(entt::registry &registry, entt::entity entity)
+        void OnShadowCreated(entt::registry &registry, entt::entity entity)
         {
             if (registry.any_of<PointLightComponent>(entity))
             {
@@ -48,7 +51,7 @@ namespace Mc
             }
         }
 
-        void OnPointShadowDestroyed(entt::registry &registry, entt::entity entity)
+        void OnShadowDestroyed(entt::registry &registry, entt::entity entity)
         {
             if (registry.any_of<PointLightComponent>(entity))
             {
@@ -74,5 +77,15 @@ namespace Mc
                 LOG_CORE_ERROR("-2");
             }
         }
+
+        // void OnMaterialCreated(entt::registry &registry, entt::entity entity)
+        // {
+
+        // }
+
+        // void OnMaterialDestroyed(entt::registry &registry, entt::entity entity)
+        // {
+
+        // }
     };
 }

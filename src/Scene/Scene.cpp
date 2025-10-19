@@ -259,17 +259,40 @@ namespace Mc
 				auto view = m_Registry.view<TransformComponent, SphereRendererComponent>();
 				for (auto entity : view)
 				{
-					auto [transform, sprite] = view.get<TransformComponent, SphereRendererComponent>(entity);
-					Renderer3D::DrawSphere(transform.GetTransform(), sprite, (int)entity);
+					auto [transform, sphere] = view.get<TransformComponent, SphereRendererComponent>(entity);
+					MaterialComponent *material = m_Registry.try_get<MaterialComponent>(entity);
+					Renderer3D::DrawSphere(transform.GetTransform(), sphere, material, (int) entity);
 				}
 			}
 
 			{
-				auto view = m_Registry.view<TransformComponent, ModelRendererComponent>();
-				for (auto entity : view)
+				// auto view = m_Registry.view<TransformComponent, ModelRendererComponent, HierarchyComponent>();
+				// for (auto entity : view)
+				// {
+				// 	auto childs = entity.GetChildren();
+				// 	auto [transform, model, hierarchy] = view.get<TransformComponent, ModelRendererComponent, HierarchyComponent>(entity);
+				// 	// Renderer3D::DrawModel(transform.GetTransform(), model, (int)entity);
+				// }
+
+				auto view = m_Registry.view<TransformComponent, ModelRendererComponent, HierarchyComponent>();
+				for (auto entityID : view)
 				{
-					auto [transform, model] = view.get<TransformComponent, ModelRendererComponent>(entity);
-					Renderer3D::DrawModel(transform.GetTransform(), model, (int)entity);
+					Entity entity{entityID, this};
+
+					// 只有根节点才需要启动递归计算
+					if (entity.GetComponent<HierarchyComponent>().Parent == 0)
+					{
+						auto transform = entity.GetComponent<TransformComponent>().GetTransform();
+						auto model = entity.GetComponent<ModelRendererComponent>();
+						for (Entity childEntity : entity.GetChildren())
+						{
+							glm::mat4 worldTransform = transform * childEntity.GetComponent<TransformComponent>().GetTransform();
+							MeshRendererComponent *mesh = m_Registry.try_get<MeshRendererComponent>(childEntity);
+							MaterialComponent *material = m_Registry.try_get<MaterialComponent>(childEntity);
+							Renderer3D::DrawModel(worldTransform, model, mesh, material, (int)entityID);
+							// Renderer3D::DrawModel(worldTransform, model, (int)entityID);
+						}
+					}
 				}
 			}
 
@@ -409,17 +432,39 @@ namespace Mc
 			auto view = m_Registry.view<TransformComponent, SphereRendererComponent>();
 			for (auto entity : view)
 			{
-				auto [transform, sprite] = view.get<TransformComponent, SphereRendererComponent>(entity);
-				Renderer3D::DrawSphere(transform.GetTransform(), sprite, (int)entity);
+				auto [transform, sphere] = view.get<TransformComponent, SphereRendererComponent>(entity);
+				MaterialComponent *material = m_Registry.try_get<MaterialComponent>(entity);
+				Renderer3D::DrawSphere(transform.GetTransform(), sphere, material, (int)entity);
 			}
 		}
 
 		{
-			auto view = m_Registry.view<TransformComponent, ModelRendererComponent>();
-			for (auto entity : view)
+			// auto view = m_Registry.view<TransformComponent, ModelRendererComponent>();
+			// for (auto entity : view)
+			// {
+			// 	auto [transform, model] = view.get<TransformComponent, ModelRendererComponent>(entity);
+			// 	Renderer3D::DrawModel(transform.GetTransform(), model, (int)entity);
+			// }
+			auto view = m_Registry.view<TransformComponent, ModelRendererComponent, HierarchyComponent>();
+
+			for (auto entityID : view)
 			{
-				auto [transform, model] = view.get<TransformComponent, ModelRendererComponent>(entity);
-				Renderer3D::DrawModel(transform.GetTransform(), model, (int)entity);
+				Entity entity{entityID, this};
+
+				// 只有根节点才需要启动递归计算
+				if (entity.GetComponent<HierarchyComponent>().Parent == 0)
+				{
+					auto transform = entity.GetComponent<TransformComponent>().GetTransform();
+					auto model = entity.GetComponent<ModelRendererComponent>();
+					for (Entity childEntity : entity.GetChildren())
+					{
+						glm::mat4 worldTransform = transform * childEntity.GetComponent<TransformComponent>().GetTransform();
+						MeshRendererComponent *mesh = m_Registry.try_get<MeshRendererComponent>(childEntity);
+						MaterialComponent *material = m_Registry.try_get<MaterialComponent>(childEntity);
+						Renderer3D::DrawModel(worldTransform, model, mesh, material, (int)entityID);
+						// Renderer3D::DrawModel(worldTransform, model, (int)entityID);
+					}
+				}
 			}
 		}
 
@@ -501,69 +546,61 @@ namespace Mc
 		// 	m_EntityMap[uuid] = entity;
 		// }
 
-		{
-			auto uuid = UUID();
-			Entity entity = {m_Registry.create(), this};
-			entity.AddComponent<IDComponent>();
-			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(-1.0f, 0.5f, 0.0f);
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	auto &transform = entity.AddComponent<TransformComponent>();
+		// 	transform.Translation = glm::vec3(-1.0f, 0.5f, 0.0f);
 
-			auto &sphere = entity.AddComponent<SphereRendererComponent>();
-			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/plastic/albedo.png");
-			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/plastic/normal.png");
-			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/plastic/metallic.png");
-			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/plastic/roughness.png");
-			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/plastic/ao.png");
-			sphere.Material->SetAlbedo(glm::vec4(1.0f));
+		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
+		// 	sphere.IsMaterial = true;
+		// 	entity.AddComponent<MaterialComponent>();
+		// 	auto &material = entity.GetComponent<MaterialComponent>();
+		// 	material.AlbedoMap = "Assets/textures/pbr/plastic/albedo.png";
+		// 	material.NormalMap = "Assets/textures/pbr/plastic/normal.png";
+		// 	material.MetallicMap = "Assets/textures/pbr/plastic/metallic.png";
+		// 	material.RoughnessMap = "Assets/textures/pbr/plastic/roughness.png";
+		// 	material.AmbientOcclusionMap = "Assets/textures/pbr/plastic/ao.png";
 
-			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "Plastic";
 
-			m_EntityMap[uuid] = entity;
-		}
+		// 	auto &tag = entity.AddComponent<TagComponent>();
+		// 	tag.Tag = "Plastic";
 
-		{
-			auto uuid = UUID();
-			Entity entity = {m_Registry.create(), this};
-			entity.AddComponent<IDComponent>();
-			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(1.0f, 0.5f, 0.0f);
+		// 	m_EntityMap[uuid] = entity;
+		// }
 
-			auto &sphere = entity.AddComponent<SphereRendererComponent>();
-			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/plastic/albedo.png");
-			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/plastic/normal.png");
-			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/plastic/metallic.png");
-			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/plastic/roughness.png");
-			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/plastic/ao.png");
-			sphere.Material->SetAlbedo(glm::vec4(1.0f));
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	auto &transform = entity.AddComponent<TransformComponent>();
+		// 	transform.Translation = glm::vec3(1.0f, 0.5f, 0.0f);
 
-			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "Plastic";
+		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
 
-			m_EntityMap[uuid] = entity;
-		}
+		// 	auto &tag = entity.AddComponent<TagComponent>();
+		// 	tag.Tag = "Plastic";
 
-		{
-			auto uuid = UUID();
-			Entity entity = {m_Registry.create(), this};
-			entity.AddComponent<IDComponent>();
-			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(-6.0f, -4.0f, 0.0f);
-			transform.Scale = glm::vec3(5.0f, 5.0f, 5.0f);
+		// 	m_EntityMap[uuid] = entity;
+		// }
 
-			auto &sphere = entity.AddComponent<SphereRendererComponent>();
-			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/plastic/albedo.png");
-			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/plastic/normal.png");
-			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/plastic/metallic.png");
-			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/plastic/roughness.png");
-			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/plastic/ao.png");
-			sphere.Material->SetAlbedo(glm::vec4(1.0f));
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	auto &transform = entity.AddComponent<TransformComponent>();
+		// 	transform.Translation = glm::vec3(-6.0f, -4.0f, 0.0f);
+		// 	transform.Scale = glm::vec3(5.0f, 5.0f, 5.0f);
 
-			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "chassis";
+		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
 
-			m_EntityMap[uuid] = entity;
-		}
+
+		// 	auto &tag = entity.AddComponent<TagComponent>();
+		// 	tag.Tag = "chassis";
+
+		// 	m_EntityMap[uuid] = entity;
+		// }
 
 		// {
 		// 	auto uuid = UUID();
@@ -607,41 +644,79 @@ namespace Mc
 		// 	m_EntityMap[uuid] = entity;
 		// }
 
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	entity.AddComponent<TransformComponent>();
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			entity.AddComponent<TransformComponent>();
 
-		// 	auto &obj = entity.AddComponent<ModelRendererComponent>();
-		// 	obj.FlipUV = true;
-		// 	obj.ModelPath = "Assets/objs/Spaceship/Spaceship.obj";
-		// 	obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
+			auto &obj = entity.AddComponent<ModelRendererComponent>();
+			obj.FlipUV = true;
+			obj.ModelPath = "Assets/objs/backpack/backpack.obj";
+			obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
 
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "obj Model 0";
+			{
+				auto &hierarchy = entity.AddComponent<HierarchyComponent>();
+				for (Ref<Mesh> &obj : obj.Model->GetMeshs())
+				{
+					Entity subEntity = entity.CreateChild(obj->GetName());
+					auto &mesh = subEntity.AddComponent<MeshRendererComponent>();
+					mesh.Id = obj->GetID();
+					hierarchy.Children.push_back(subEntity.GetUUID());
 
-		// 	m_EntityMap[uuid] = entity;
-		// }
+					mesh.IsMaterial = true;
+					subEntity.AddComponent<MaterialComponent>();
+					auto &material = subEntity.GetComponent<MaterialComponent>();
+					material.AlbedoMap = "Assets/objs/backpack/textures/diffuse.jpg";
+					material.NormalMap = "Assets/objs/backpack/textures/normal.png";
+					material.MetallicMap = "Assets/objs/backpack/textures/specular.jpg";
+					material.RoughnessMap = "Assets/objs/backpack/textures/roughness.jpg";
+					material.AmbientOcclusionMap = "Assets/objs/backpack/textures/ao.jpg";
+				}
+			}
 
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(0.0f, 0.0f, 0.0f);
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "obj Model 0";
 
-		// 	auto &obj = entity.AddComponent<ModelRendererComponent>();
-		// 	obj.FlipUV = true;
-		// 	obj.ModelPath = "Assets/objs/backpack/backpack.obj";
-		// 	obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
-		// 	// obj.Model = Model::Create(obj.ModelPath, obj.FlipUV);
+			m_EntityMap[uuid] = entity;
+		}
 
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "obj Model 1";
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(0.0f, 0.0f, 0.0f);
 
-		// 	m_EntityMap[uuid] = entity;
-		// }
+			auto &obj = entity.AddComponent<ModelRendererComponent>();
+			obj.ModelPath = "Assets/objs/Spaceship/Spaceship.obj";
+			obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
+			{
+				auto &hierarchy = entity.AddComponent<HierarchyComponent>();
+				for (Ref<Mesh> &obj : obj.Model->GetMeshs())
+				{
+					Entity subEntity = entity.CreateChild(obj->GetName());
+					auto &mesh = subEntity.AddComponent<MeshRendererComponent>();
+					mesh.Id = obj->GetID();
+					hierarchy.Children.push_back(subEntity.GetUUID());
+
+					mesh.IsMaterial = true;
+					subEntity.AddComponent<MaterialComponent>();
+					auto &material = subEntity.GetComponent<MaterialComponent>();
+					material.AlbedoMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_color_4.jpg";
+					material.NormalMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_nmap_2_Tris.jpg";
+					material.MetallicMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_metalness.jpg";
+					material.RoughnessMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_rough.jpg";
+					material.AmbientOcclusionMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship Ao_Blender.jpg";
+					material.EmissiveMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_emi.jpg";
+				}
+
+				auto &tag = entity.AddComponent<TagComponent>();
+				tag.Tag = "obj Model 1";
+
+				m_EntityMap[uuid] = entity;
+			}
+		}
 
 		{
 			auto uuid = UUID();
@@ -754,6 +829,26 @@ namespace Mc
 
 	template <>
 	void Scene::OnComponentAdded<ModelRendererComponent>(Entity entity, ModelRendererComponent &component)
+	{
+	}
+
+	template <>
+	void Scene::OnComponentAdded<MeshRendererComponent>(Entity entity, MeshRendererComponent &component)
+	{
+	}
+
+	template <>
+	void Scene::OnComponentAdded<WorldTransformComponent>(Entity entity, WorldTransformComponent &component)
+	{
+	}
+
+	template <>
+	void Scene::OnComponentAdded<HierarchyComponent>(Entity entity, HierarchyComponent &component)
+	{
+	}
+
+	template <>
+	void Scene::OnComponentAdded<MaterialComponent>(Entity entity, MaterialComponent &component)
 	{
 	}
 

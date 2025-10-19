@@ -60,6 +60,10 @@ namespace Mc
 		UUID GetUUID() { return GetComponent<IDComponent>().ID; }
 		const std::string &GetName() { return GetComponent<TagComponent>().Tag; }
 
+		Entity CreateChild(const std::string &name = "Child Entity");
+		std::vector<Entity> GetChildren();
+		void ClearChildren();
+
 		bool operator==(const Entity &other) const
 		{
 			return m_EntityHandle == other.m_EntityHandle && m_Scene == other.m_Scene;

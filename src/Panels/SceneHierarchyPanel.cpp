@@ -112,7 +112,21 @@ namespace Mc {
 			for (auto entityID : view)
 			{
 				Entity entity{entityID, m_Context.get()};
-				DrawEntityNode(entity);
+
+				bool isRoot = true;
+				if (entity.HasComponent<HierarchyComponent>())
+				{
+					if (entity.GetComponent<HierarchyComponent>().Parent != 0)
+					{
+						isRoot = false;
+					}
+				}
+
+				if (isRoot)
+				{
+					DrawEntityNode(entity);
+				}
+				// DrawEntityNode(entity);
 			}
 
 			if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
@@ -146,9 +160,17 @@ namespace Mc {
 	void SceneHierarchyPanel::DrawEntityNode(Entity entity)
 	{
 		auto& tag = entity.GetComponent<TagComponent>().Tag;
-		
+
+		bool hasChildren = false;
+		if (entity.HasComponent<HierarchyComponent>())
+		{
+			hasChildren = !entity.GetComponent<HierarchyComponent>().Children.empty();
+		}
+
 		ImGuiTreeNodeFlags flags = ((m_SelectionContext == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
 		flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
+		if (!hasChildren) flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+		
 		bool opened = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, tag.c_str());
 		if (ImGui::IsItemClicked())
 		{
@@ -166,7 +188,20 @@ namespace Mc {
 
 		if (opened)
 		{
-			ImGui::TreePop();
+			if (hasChildren)
+			{
+				// 递归调用自身绘制子 Entity
+				for (Entity childEntity : entity.GetChildren())
+				{
+					DrawEntityNode(childEntity);
+				}
+			}
+
+			if (hasChildren) // 只有非 Leaf 节点才需要 Pop
+			{
+				ImGui::TreePop();
+			}
+			// ImGui::TreePop();
 		}
 
 		if (entityDeleted)
@@ -487,7 +522,7 @@ namespace Mc {
 					outerConeAngle = glm::degrees(component.InnerConeAngle) + 1.0f;
 				component.OuterConeAngle = glm::radians(outerConeAngle);
 			}
-			
+
 			ImGui::Checkbox("Casts Shadows", &component.CastsShadows);
 
 			if (component.CastsShadows)
@@ -515,10 +550,26 @@ namespace Mc {
 			ImGui::DragFloat("Far Plane", &component.FarPlane, 0.1f, 0.0f, 10000.0f, "%.1f");
 		});
 
-		DrawComponent<SphereRendererComponent>("Sphere Renderer", entity, [](auto &component)
+		DrawComponent<SphereRendererComponent>("Sphere Renderer", entity, [this](auto &component)
 		{
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
 			ImGui::DragFloat("Tiling Texture", &component.TilingFactor, 0.1f, 0.0f, 100.0f);
+
+			ImGui::Checkbox("IsMaterial", &component.IsMaterial);
+			if (component.IsMaterial)
+			{
+				if (!m_SelectionContext.HasComponent<MaterialComponent>())
+				{
+					m_SelectionContext.AddComponent<MaterialComponent>();
+				}
+			}
+			else
+			{
+				if (m_SelectionContext.HasComponent<MaterialComponent>())
+				{
+					m_SelectionContext.RemoveComponent<MaterialComponent>();
+				}
+			}
 
 			ImGui::Checkbox("ReceivesPBR", &component.ReceivesPBR);
 			ImGui::Checkbox("ReceivesIBL", &component.ReceivesIBL);
@@ -526,10 +577,10 @@ namespace Mc {
 			ImGui::Checkbox("ReceivesShadow", &component.ReceivesShadow);
 			ImGui::Checkbox("ProjectionShadow", &component.ProjectionShadow);
 
-			Utils::PbrUiRenderer(component.Material); 
+			// Utils::PbrUiRenderer(component.Material);
 		});
 
-		DrawComponent<ModelRendererComponent>("Model Renderer", entity, [](auto &component)
+		DrawComponent<ModelRendererComponent>("Model Renderer", entity, [this](auto &component)
 		{
 			ImGui::Text("Model Path");
 			ImGui::Button((component.ModelPath + "##ModelPath").c_str(), ImVec2(ImGui::GetWindowSize().x, 40));
@@ -553,6 +604,18 @@ namespace Mc {
 					{
 						component.ModelPath = modelPath.string();
 						component.Model = ModelManager::Get().GetModel(modelPath.string());
+
+						if (!component.ModelPath.empty() && component.Model != nullptr)
+						{
+							auto& hierarchy = m_SelectionContext.AddComponent<HierarchyComponent>();
+							for (Ref<Mesh> &obj : component.Model->GetMeshs())
+							{
+								Entity subEntity = m_SelectionContext.CreateChild(obj->GetName());
+								auto &mesh = subEntity.AddComponent<MeshRendererComponent>();
+								mesh.Id = obj->GetID();
+								hierarchy.Children.push_back(subEntity.GetUUID());
+							}
+						}
 					}
 				}
 				ImGui::EndDragDropTarget();
@@ -567,51 +630,83 @@ namespace Mc {
 			ImGui::Checkbox("ReceivesLight", &component.ReceivesLight);
 
 			ImGui::Checkbox("GammaCorrection", &component.GammaCorrection);
+		});
 
-			ImGui::Text("Meshs");
+		DrawComponent<MeshRendererComponent>("Mesh Renderer", entity, [this](auto &component)
+		{
+			ImGui::Checkbox("IsMaterial", &component.IsMaterial);
+			if (component.IsMaterial)
 			{
-				ImGui::BeginChild("Meshs", ImVec2(0, 200), true, ImGuiWindowFlags_NoScrollbar); // 创建一个子区域
-				if (!component.ModelPath.empty() && component.Model != nullptr)
+				if (!m_SelectionContext.HasComponent<MaterialComponent>())
 				{
-					for (auto &obj : component.Model->GetMeshs())
-					{
-						if (ImGui::Button(obj->GetName().c_str(), ImVec2(ImGui::GetWindowSize().x, 40)))
-						{
-							component.CurrentMesh = obj;
-						}
-					}
+					m_SelectionContext.AddComponent<MaterialComponent>();
 				}
-				ImGui::EndChild();
 			}
-
-			ImGui::Text("Selected Mesh Properties");
-			ImGui::BeginChild("Selected Mesh Properties", ImVec2(0, 700), true, ImGuiWindowFlags_NoScrollbar); // 创建一个子区域
-			if (component.CurrentMesh != nullptr)
+			else
 			{
-				ImGui::Text(component.CurrentMesh->GetName().c_str());
-
-				if (ImGui::Button("Add Materials"))
-					ImGui::OpenPopup("AddMaterials");
-
-				if (ImGui::BeginPopup("AddMaterials"))
+				if (m_SelectionContext.HasComponent<MaterialComponent>())
 				{
-					for (auto &obj : component.Model->GetMaterials())
-					{
-						if (ImGui::MenuItem(obj->GetName().c_str()))
-						{
-							LOG_CORE_WARN("{0}", obj->GetName().c_str());
-							component.CurrentMesh->SetMaterial(obj);
-						}
-					}
+					m_SelectionContext.RemoveComponent<MaterialComponent>();
+				}
+			} 
+		});
 
-					ImGui::EndPopup();
+		DrawComponent<MaterialComponent>("PBR Material", entity, [](auto &component){ 
+			ImGui::Text("PBR Material");
+
+			ImGui::ColorEdit3("Albedo", glm::value_ptr(component.Albedo));
+			ImGui::DragFloat("Roughness", &component.Roughness, 0.1f, 0.0f, 1.0f);
+			ImGui::DragFloat("Metallic", &component.Metallic, 0.1f, 0.0f, 1.0f);
+			ImGui::DragFloat("AO", &component.Ao, 0.1f, 0.0f, 1.0f);
+			ImGui::ColorEdit3("Emissive", glm::value_ptr(component.Emissive));
+
+			std::vector<std::string> arr = {"AlbedoMap", "NormalMap", "MetallicMap", "RoughnessMap", "AmbientOcclusionMap", "EmissiveMap", "HeightMap"};
+
+			std::string *mapPointers[] = {
+				&component.AlbedoMap,
+				&component.NormalMap,
+				&component.MetallicMap,
+				&component.RoughnessMap,
+				&component.AmbientOcclusionMap,
+				&component.EmissiveMap,
+				&component.HeightMap
+			};
+			ImGui::Text("Texture Maps");
+
+			for (int i = 0; i < arr.size(); i++)
+			{
+				ImGui::PushID(i);
+
+				std::string *currentMapPath = mapPointers[i];
+
+				// 1. 显示贴图名称
+				ImGui::Text(arr[i].c_str());
+
+				std::string buttonLabel;
+				if (!currentMapPath->empty())
+				{
+					size_t lastSlash = currentMapPath->find_last_of("/\\");
+					buttonLabel = (lastSlash == std::string::npos) ? *currentMapPath : currentMapPath->substr(lastSlash + 1);
+				}
+				else
+				{
+					buttonLabel = "Click to load " + arr[i];
 				}
 
-				ImGui::Text(component.CurrentMesh->GetMaterial()->GetName().c_str());
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
+				if (ImGui::Button(buttonLabel.c_str(), ImVec2(ImGui::GetContentRegionAvail().x * 0.8f, 35)))
+				{
+				}
+				ImGui::PopStyleColor();
 
-				Utils::PbrUiRenderer(component.CurrentMesh->GetMaterial());
+				ImGui::SameLine();
+				if (ImGui::Button("X", ImVec2(ImGui::GetContentRegionAvail().x, 35)))
+				{
+					*currentMapPath = "";
+				}
+				ImGui::PopID();
 			}
-			ImGui::EndChild();
+			
 		});
 
 		DrawComponent<HdrSkyboxComponent>("Hdr Skybox", entity, [](auto &component)

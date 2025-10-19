@@ -8,6 +8,7 @@
 
 #include "src/Renderer/UniformBuffer.h"
 #include "src/Renderer/HDRSkybox.h"
+#include "src/Renderer/Manager/TextureManager.h"
 #include "src/Renderer/Manager/MeshManager.h"
 #include "src/Renderer/Manager/HdrManager.h"
 
@@ -341,6 +342,61 @@ namespace Mc
 			{
 				TextureType type = (TextureType)textureTypeIndex;
 				const Ref<Texture2D> &texture = textures.at(type);
+
+				if (texture && texture != s_Data.WhiteTexture)
+				{
+					int foundSlotIndex = -1;
+
+					for (uint32_t slotIndex = 1; slotIndex < s_Data.TextureSlotIndex; ++slotIndex)
+					{
+						if (*s_Data.TextureSlots[slotIndex] == *texture)
+						{
+							foundSlotIndex = slotIndex;
+							break;
+						}
+					}
+
+					if (foundSlotIndex != -1)
+					{
+						indices[textureTypeIndex] = foundSlotIndex;
+					}
+					else
+					{
+						if (s_Data.TextureSlotIndex >= Renderer3DData::MaxTextureSlots)
+							Renderer3D::NextBatch();
+
+						indices[textureTypeIndex] = s_Data.TextureSlotIndex;
+						s_Data.TextureSlots[s_Data.TextureSlotIndex] = texture;
+						s_Data.TextureSlotIndex++;
+					}
+				}
+			}
+			return indices;
+		}
+
+		std::vector<int> GetMaterialTextureIndices(MaterialComponent &material)
+		{
+			int TextureSize = 7;
+
+			std::vector<int> indices(TextureSize, 0);
+
+			std::string *mapPointers[] = {
+				&material.AlbedoMap,
+				&material.NormalMap,
+				&material.MetallicMap,
+				&material.RoughnessMap,
+				&material.AmbientOcclusionMap,
+				&material.EmissiveMap,
+				&material.HeightMap
+			};
+
+			for (int textureTypeIndex = 0; textureTypeIndex < TextureSize; ++textureTypeIndex)
+			{
+				std::string *currentMapPath = mapPointers[textureTypeIndex];
+				if (currentMapPath->empty())
+					continue;
+
+				const Ref<Texture2D> &texture = TextureManager::Get().GetTexture(*currentMapPath);
 
 				if (texture && texture != s_Data.WhiteTexture)
 				{
@@ -1091,11 +1147,8 @@ namespace Mc
 		StartBatch();
 	}
 
-	void Renderer3D::DrawSphere(const glm::mat4 &transform, SphereRendererComponent &src, int entityID)
+	void Renderer3D::DrawSphere(const glm::mat4 &transform, SphereRendererComponent &src, MaterialComponent *material, int entityID)
 	{
-
-		std::vector<int> arrIndex = Mc::Utils::GetMaterialTextureIndices(src.Material);
-
 		if (s_Data.SphereCount >= Renderer3DData::MaxSphereCount)
 		{
 			NextBatch();
@@ -1106,15 +1159,34 @@ namespace Mc
 			s_Data.ProjectionShadowDatas.SphereTranformDatas.push_back(transform);
 		}
 
+		glm::vec4 albedo = glm::vec4(1.0f);
+		glm::vec4 emissive = glm::vec4(0.0f);
+
+		std::vector<int> arrIndex(7, 0);
+
+		float roughness = 0.5f;
+		float metallic = 0.0f;
+		float ao = 1.0f;
+
+		if (material != nullptr)
+		{	
+			arrIndex = Mc::Utils::GetMaterialTextureIndices(*material);
+			albedo = glm::vec4(material->Albedo, 1.0f);
+			emissive = glm::vec4(material->Emissive, 1.0f);
+			roughness = material->Roughness;
+			metallic = material->Metallic;
+			ao = material->Ao;
+		}
+
 		s_Data.SphereInstances.push_back({
 			transform,
 			src.Color,
 
-			src.Material->GetAlbedo(),
-			glm::vec4(src.Material->GetEmissive(), 1.0f),
-			src.Material->GetRoughness(),
-			src.Material->GetMetallic(),
-			src.Material->GetAO(),
+			albedo,
+			emissive,
+			roughness,
+			metallic,
+			ao,
 
 			// Texture
 			arrIndex[0],
@@ -1139,76 +1211,86 @@ namespace Mc
 		s_Data.Stats.SphereCount++;
 	}
 
-	void Renderer3D::DrawModel(const glm::mat4 &transform, ModelRendererComponent &src, int entityID)
-	{
+    void Renderer3D::DrawModel(const glm::mat4 &transform, ModelRendererComponent &src, MeshRendererComponent *mesh, MaterialComponent *material, int entityID)
+    {
 		if (src.ModelPath.empty())
 			return;
 
-		// 遍历模型中的每个mesh
-		for (const auto &mesh : src.Model->GetMeshs())
+		glm::vec4 albedo = glm::vec4(1.0f);
+		glm::vec4 emissive = glm::vec4(0.0f);
+
+		std::vector<int> arrIndex(7, 0);
+
+		float roughness = 0.5f;
+		float metallic = 0.0f;
+		float ao = 1.0f;
+
+		if (material != nullptr)
 		{
-			// 获取mesh的材质
-			Ref<Material> material = mesh->GetMaterial();
-
-			std::vector<int> arrIndex = Mc::Utils::GetMaterialTextureIndices(material);
-
-			// 创建一个用于哈希表的键
-			Renderer3DData::ModelCallKey key;
-			key.MeshID = mesh->GetID(); // 假设你的Mesh类有唯一ID
-
-			Renderer3DData::ModelCallBatch &batch = s_Data.ModelDrawCallBatches[key];
-
-			if (batch.InstanceSSBO == nullptr)
-			{
-				batch.InstanceSSBO = ShaderStorageBuffer::Create(Renderer3DData::MaxInstancesPerModel * sizeof(MeshInstanceData));
-				batch.Instances.reserve(Renderer3DData::MaxInstancesPerModel);
-			}
-
-			if (batch.InstanceCount >= Renderer3DData::MaxInstancesPerModel)
-			{
-				NextBatch();
-			}
-
-			// 填充实例数据
-			MeshInstanceData instanceData = {
-				transform,
-				src.Color,
-
-				material->GetAlbedo(),
-				glm::vec4(material->GetEmissive(), 1.0f),
-				material->GetRoughness(),
-				material->GetMetallic(),
-				material->GetAO(),
-
-				// Texture
-				arrIndex[0],
-				arrIndex[1],
-				arrIndex[2],
-				arrIndex[3],
-				arrIndex[4],
-				arrIndex[5],
-				arrIndex[6],
-
-				entityID,
-				(int)src.FlipUV,
-
-				(int)src.ReceivesPBR,
-				(int)src.ReceivesIBL,
-				(int)src.ReceivesLight,
-				0,
-			};
-
-			batch.Instances.push_back(instanceData);
-			batch.InstanceCount++;
-
-			arrIndex.clear();
+			arrIndex = Mc::Utils::GetMaterialTextureIndices(*material);
+			albedo = glm::vec4(material->Albedo, 1.0f);
+			emissive = glm::vec4(material->Emissive, 1.0f);
+			roughness = material->Roughness;
+			metallic = material->Metallic;
+			ao = material->Ao;
 		}
+
+		// 创建一个用于哈希表的键
+		Renderer3DData::ModelCallKey key;
+		key.MeshID = mesh->Id;
+
+		Renderer3DData::ModelCallBatch &batch = s_Data.ModelDrawCallBatches[key];
+
+		if (batch.InstanceSSBO == nullptr)
+		{
+			batch.InstanceSSBO = ShaderStorageBuffer::Create(Renderer3DData::MaxInstancesPerModel * sizeof(MeshInstanceData));
+			batch.Instances.reserve(Renderer3DData::MaxInstancesPerModel);
+		}
+
+		if (batch.InstanceCount >= Renderer3DData::MaxInstancesPerModel)
+		{
+			NextBatch();
+		}
+
+		// 填充实例数据
+		MeshInstanceData instanceData = {
+			transform,
+			src.Color,
+
+			albedo,
+			emissive,
+			roughness,
+			metallic,
+			ao,
+
+			// Texture
+			arrIndex[0],
+			arrIndex[1],
+			arrIndex[2],
+			arrIndex[3],
+			arrIndex[4],
+			arrIndex[5],
+			arrIndex[6],
+
+			entityID,
+			(int)src.FlipUV,
+
+			(int)src.ReceivesPBR,
+			(int)src.ReceivesIBL,
+			(int)src.ReceivesLight,
+			0,
+		};
+
+		batch.Instances.push_back(instanceData);
+		batch.InstanceCount++;
+
+		arrIndex.clear();
 
 		s_Data.ModelCount++;
 		s_Data.Stats.ModelCount++; // 统计渲染的模型实例数量
 	}
 
-	void Renderer3D::DrawDirectionalLight(const glm::mat4 &transform, DirectionalLightComponent &src, ShadowComponent *shadow, int entityID)
+    void Renderer3D::DrawDirectionalLight(const glm::mat4 &transform, DirectionalLightComponent &src, ShadowComponent *shadow, int entityID)
 	{
 		if (s_Data.DirectionalLights.size() < Renderer3DData::MAX_DIRECTIONAL_LIGHTS)
 		{

@@ -111,10 +111,12 @@ namespace Mc
 
 	struct SphereRendererComponent
 	{
-		Ref<Material> Material = MaterialManager::Get().AddMaterial();
+		// Ref<Material> Material = MaterialManager::Get().AddMaterial();
 
 		glm::vec4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
 		float TilingFactor = 1.0f;
+
+		bool IsMaterial = false;
 
 		bool ReceivesPBR = false;
 		bool ReceivesIBL = false;
@@ -142,10 +144,54 @@ namespace Mc
 
 		bool GammaCorrection = false;
 
-		Ref<Mesh> CurrentMesh = nullptr; // 当前批次正在渲染的模型
-
 		ModelRendererComponent() = default;
 		ModelRendererComponent(const ModelRendererComponent &) = default;
+	};
+
+	struct WorldTransformComponent
+	{
+		glm::mat4 WorldTransform = glm::mat4(1.0f);
+
+		WorldTransformComponent() = default;
+		WorldTransformComponent(const WorldTransformComponent &) = default;
+	};
+
+	struct MeshRendererComponent
+	{
+		uint32_t Id = 0;
+		bool IsMaterial = false;
+
+		MeshRendererComponent() = default;
+		MeshRendererComponent(const MeshRendererComponent &) = default;
+	};
+
+	struct HierarchyComponent
+	{
+		UUID Parent = 0;
+		std::vector<UUID> Children;
+
+		HierarchyComponent() = default;
+		HierarchyComponent(const HierarchyComponent &) = default;
+	};
+
+	struct MaterialComponent
+	{
+		glm::vec3 Albedo = glm::vec3(1.0f);
+		float Roughness = 0.5f;
+		float Metallic = 0.0f;
+		float Ao = 1.0f;
+		glm::vec3 Emissive = glm::vec3(0.0f);
+
+		std::string AlbedoMap;
+		std::string NormalMap;
+		std::string MetallicMap;
+		std::string RoughnessMap;
+		std::string AmbientOcclusionMap;
+		std::string EmissiveMap;
+		std::string HeightMap;
+
+		MaterialComponent() = default;
+		MaterialComponent(const MaterialComponent &) = default;
 	};
 
 	struct HdrSkyboxComponent
@@ -170,6 +216,10 @@ namespace Mc
 		DirectionalLightComponent,PointLightComponent,SpotLightComponent,
 		ShadowComponent,
 		SphereRendererComponent,
-		ModelRendererComponent, HdrSkyboxComponent
+		ModelRendererComponent, MeshRendererComponent,
+		WorldTransformComponent,
+		HierarchyComponent,
+		MaterialComponent,
+		HdrSkyboxComponent
 		>;
 }

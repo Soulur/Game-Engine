@@ -41,9 +41,9 @@ namespace Mc
 		// static void DrawCramera(const glm::mat4 &transform, int entityID = -1);
 
 		// Sphere
-		static void DrawSphere(const glm::mat4 &transform, SphereRendererComponent &src, int entityID);
+		static void DrawSphere(const glm::mat4 &transform, SphereRendererComponent &src, MaterialComponent *material, int entityID);
 
-		static void DrawModel(const glm::mat4 &transform, ModelRendererComponent &src, int entityID);
+		static void DrawModel(const glm::mat4 &transform, ModelRendererComponent &src, MeshRendererComponent *mesh, MaterialComponent *material, int entityID);
 
 		static void DrawDirectionalLight(const glm::mat4 &transform, DirectionalLightComponent &src, ShadowComponent *shadow, int entityID);
 		static void DrawPointLight(const glm::mat4 &transform, PointLightComponent &src, ShadowComponent *shadow, int entityID);

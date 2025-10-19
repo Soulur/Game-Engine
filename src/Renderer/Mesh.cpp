@@ -28,8 +28,6 @@ namespace Mc
         m_VertexArray->SetIndexBuffer(m_IndexBuffer);
 
         m_VertexArray->UnBind(); // 解绑 VAO
-
-        m_Material = MaterialManager::Get().Init();
     }
 
     void Mesh::Draw(Ref<Shader> &shader)
@@ -44,11 +42,6 @@ namespace Mc
         m_VertexArray->Bind();
         glDrawElementsInstanced(GL_TRIANGLES, m_IndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr, instanceCount);
         m_VertexArray->UnBind();
-    }
-
-    void Mesh::SetMaterial(Ref<Material> &material)
-    {
-        m_Material = material;
     }
 
     Ref<Mesh> Mesh::Create(std::string name, std::vector<ModelVertex> vertices, std::vector<uint32_t> indices)

@@ -198,25 +198,25 @@ namespace Mc
 
         // ---------------------------------------------------------------------------------------
         // Log
-        ImGui::Begin("LOG");
+        // ImGui::Begin("LOG");
 
-        std::string result;
-        std::ifstream in("log.log", std::ios::in | std::ios::binary);
-        if (in)
-        {
-            in.seekg(0, std::ios::end);
-            size_t size = in.tellg();
-            if (size != -1)
-            {
-                result.resize(size);
-                in.seekg(0, std::ios::beg);
-                in.read(&result[0], size);
-                in.close();
-            }
-        }
+        // std::string result;
+        // std::ifstream in("log.log", std::ios::in | std::ios::binary);
+        // if (in)
+        // {
+        //     in.seekg(0, std::ios::end);
+        //     size_t size = in.tellg();
+        //     if (size != -1)
+        //     {
+        //         result.resize(size);
+        //         in.seekg(0, std::ios::beg);
+        //         in.read(&result[0], size);
+        //         in.close();
+        //     }
+        // }
 
-        ImGui::Text(result.c_str());
-        ImGui::End();
+        // ImGui::Text(result.c_str());
+        // ImGui::End();
         // ---------------------------------------------------------------------------------------------------------
 
         ImGui::Begin("Stats");
@@ -327,28 +327,28 @@ namespace Mc
         ImGui::PopStyleVar();
 
         // ------------------------------------------------------------------------------------------------
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
-        ImGui::Begin("Game");
-        {
-            auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
-            auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
-            auto viewportOffset = ImGui::GetWindowPos();
-            m_GameViewportBounds[0] = {viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y};
-            m_GameViewportBounds[1] = {viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y};
+        // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
+        // ImGui::Begin("Game");
+        // {
+        //     auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
+        //     auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
+        //     auto viewportOffset = ImGui::GetWindowPos();
+        //     m_GameViewportBounds[0] = {viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y};
+        //     m_GameViewportBounds[1] = {viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y};
 
-            m_GameViewportFocused = ImGui::IsWindowFocused();
-            m_GameViewportHovered = ImGui::IsWindowHovered();
-        }
+        //     m_GameViewportFocused = ImGui::IsWindowFocused();
+        //     m_GameViewportHovered = ImGui::IsWindowHovered();
+        // }
 
-        if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
-        {
-            m_SceneState = SceneState::Game;
-            Application::Get().GetImGuiLayer()->BlockEvents(!m_GameViewportFocused && !m_GameViewportHovered);
-        }
-        m_GameViewportSize = {ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y};
-        ImGui::Image(reinterpret_cast<void *>(m_GameFramebuffer->GetColorAttachmentRendererID()), ImVec2{m_GameViewportSize.x, m_GameViewportSize.y}, ImVec2{0, 1}, ImVec2{1, 0});
-        ImGui::End();
-        ImGui::PopStyleVar();
+        // if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
+        // {
+        //     m_SceneState = SceneState::Game;
+        //     Application::Get().GetImGuiLayer()->BlockEvents(!m_GameViewportFocused && !m_GameViewportHovered);
+        // }
+        // m_GameViewportSize = {ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y};
+        // ImGui::Image(reinterpret_cast<void *>(m_GameFramebuffer->GetColorAttachmentRendererID()), ImVec2{m_GameViewportSize.x, m_GameViewportSize.y}, ImVec2{0, 1}, ImVec2{1, 0});
+        // ImGui::End();
+        // ImGui::PopStyleVar();
 
         ImGui::End();
     }

@@ -232,22 +232,7 @@ namespace Mc
 			out << YAML::BeginMap; // SpriteRendererComponent
 
 			auto &sphereRendererComponent = entity.GetComponent<SphereRendererComponent>();
-			{
-				out << YAML::Key << "AlbedoValue" << YAML::Value << sphereRendererComponent.Material->GetAlbedo();
-				out << YAML::Key << "AOValue" << YAML::Value << sphereRendererComponent.Material->GetAO();
-				out << YAML::Key << "EmissiveValue" << YAML::Value << sphereRendererComponent.Material->GetEmissive();
-				out << YAML::Key << "MetallicValue" << YAML::Value << sphereRendererComponent.Material->GetMetallic();
-				out << YAML::Key << "RoughnessValue" << YAML::Value << sphereRendererComponent.Material->GetRoughness();
 
-				std::vector<std::string> arr = {"AlbedoMap", "NormalMap", "MetallicMap", "RoughnessMap", "AmbientOcclusionMap", "EmissiveMap", "HeightMap"};
-				for (int i = 0; i < (int)TextureType::Count; i++)
-				{
-					if (sphereRendererComponent.Material->GetTexture((TextureType)i))
-					{
-						out << YAML::Key << arr[i] << YAML::Value << sphereRendererComponent.Material->GetTexture((TextureType)i)->GetPath();
-					}
-				}
-			}
 			out << YAML::Key << "Color" << YAML::Value << sphereRendererComponent.Color;			
 			out << YAML::Key << "TilingFactor" << YAML::Value << sphereRendererComponent.TilingFactor;
 			out << YAML::Key << "ReceivesPBR" << YAML::Value << sphereRendererComponent.ReceivesPBR;
@@ -266,9 +251,6 @@ namespace Mc
 			if (modelRendererComponent.Model)
 			{
 				out << YAML::Key << "ModelPath" << YAML::Value << modelRendererComponent.ModelPath;
-				for (auto &mesh : modelRendererComponent.Model->GetMeshs())
-					if (!mesh->GetMaterial()->GetName().empty())
-						out << YAML::Key << mesh->GetName() << YAML::Value << mesh->GetMaterial()->GetName();
 			}
 			out << YAML::Key << "Color" << YAML::Value << modelRendererComponent.Color;
 			out << YAML::Key << "FlipUV" << YAML::Value << modelRendererComponent.FlipUV;
@@ -416,22 +398,6 @@ namespace Mc
 				if (sphereRendererComponent)
 				{
 					auto &src = deserializedEntity.AddComponent<SphereRendererComponent>();
-					{
-						src.Material->SetAlbedo(sphereRendererComponent[ "AlbedoValue"].as<glm::vec4>());
-						src.Material->SetAO(sphereRendererComponent[ "AOValue"].as<float>());
-						src.Material->SetEmissive(sphereRendererComponent[ "EmissiveValue"].as<glm::vec3>());
-						src.Material->SetMetallic(sphereRendererComponent[ "MetallicValue"].as<float>());
-						src.Material->SetRoughness(sphereRendererComponent[ "RoughnessValue"].as<float>());
-
-						std::vector<std::string> arr = {"AlbedoMap", "NormalMap", "MetallicMap", "RoughnessMap", "AmbientOcclusionMap", "EmissiveMap", "HeightMap"};
-						for (int i = 0; i < (int)TextureType::Count; i++)
-						{
-							if (sphereRendererComponent[arr[i]])
-							{
-								src.Material->SetTexture((TextureType)i, sphereRendererComponent[arr[i]].as<std::string>());
-							}
-						}
-					}
 
 					src.Color = sphereRendererComponent["Color"].as<glm::vec4>();
 					if (sphereRendererComponent["TilingFactor"])
@@ -451,14 +417,7 @@ namespace Mc
 						src.ModelPath = a;
 						src.Model = ModelManager::Get().GetModel(a);
 
-						for (auto &mesh : src.Model->GetMeshs())
-							if (modelRendererComponent[mesh->GetName()])
-							{
-								std::string materialName = modelRendererComponent[mesh->GetName()].as<std::string>();
-								for (auto &material : src.Model->GetMaterials())
-									if (material->GetName() == materialName)
-										mesh->SetMaterial(material);
-							}
+
 					}
 					src.Color = modelRendererComponent["Color"].as<glm::vec4>();
 					src.FlipUV = modelRendererComponent["FlipUV"].as<bool>();
