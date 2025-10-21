@@ -44,14 +44,24 @@ namespace Mc
 
         void SeializeScene(Ref<Scene> scene, const std::string &path);
 
+        void OnScenePlay();
+        void OnSceneSimulate();
+        void OnSceneStop();
+        void OnScenePause();
+
+        void OnDuplicateEntity();
+
+        // UI Panels
+        void UI_Toolbar();
+
     private:
         EditorCamera m_EditorCamera;
 
-        Ref<Framebuffer> m_EditorFramebuffer;
-        bool m_EditorViewportFocused = false;
-        bool m_EditorViewportHovered = false;
-        glm::vec2 m_EditorViewportSize = {0.0f, 0.0f};
-        glm::vec2 m_EditorViewportBounds[2];
+        Ref<Framebuffer> m_Framebuffer;
+        bool m_ViewportFocused = false;
+        bool m_ViewportHovered = false;
+        glm::vec2 m_ViewportSize = {0.0f, 0.0f};
+        glm::vec2 m_ViewportBounds[2];
 
         int m_GizmoType = -1;
         
@@ -59,18 +69,18 @@ namespace Mc
 
         // --------------------------------------------------
 
-        Ref<Framebuffer> m_GameFramebuffer;
-        bool m_GameViewportFocused = false;
-        bool m_GameViewportHovered = false;
-        glm::vec2 m_GameViewportSize = {0.0f, 0.0f};
-        glm::vec2 m_GameViewportBounds[2];
+        // Ref<Framebuffer> m_GameFramebuffer;
+        // bool m_GameViewportFocused = false;
+        // bool m_GameViewportHovered = false;
+        // glm::vec2 m_GameViewportSize = {0.0f, 0.0f};
+        // glm::vec2 m_GameViewportBounds[2];
 
         // --------------------------------------------------
 
         enum class SceneState
         {
             Edit = 0,
-            Game = 1,
+            Play = 1,
             Simulate = 2
         };
 
@@ -82,5 +92,8 @@ namespace Mc
         // Panels
         SceneHierarchyPanel m_SceneHierarchyPanel;
         ProjectBrowserPanel m_ProjectBrowserPanel;
+
+        // Editor resources
+        Ref<Texture2D> m_IconPlay, m_IconPause, m_IconStep, m_IconSimulate, m_IconStop;
     };
 }

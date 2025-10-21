@@ -248,38 +248,31 @@ namespace Mc
 			{
 				auto view = m_Registry.view<HdrSkyboxComponent>();
 				for (auto entity : view)
+
 				{
 					auto hdr = view.get<HdrSkyboxComponent>(entity);
 					Renderer3D::DrawHdrSkybox(hdr, (int)entity);
 				}
 			}
 
-			// Draw sprites
+			// Draw sphere
 			{
 				auto view = m_Registry.view<TransformComponent, SphereRendererComponent>();
 				for (auto entity : view)
 				{
 					auto [transform, sphere] = view.get<TransformComponent, SphereRendererComponent>(entity);
 					MaterialComponent *material = m_Registry.try_get<MaterialComponent>(entity);
-					Renderer3D::DrawSphere(transform.GetTransform(), sphere, material, (int) entity);
+					Renderer3D::DrawSphere(transform.GetTransform(), sphere, material, (int)entity);
 				}
 			}
 
 			{
-				// auto view = m_Registry.view<TransformComponent, ModelRendererComponent, HierarchyComponent>();
-				// for (auto entity : view)
-				// {
-				// 	auto childs = entity.GetChildren();
-				// 	auto [transform, model, hierarchy] = view.get<TransformComponent, ModelRendererComponent, HierarchyComponent>(entity);
-				// 	// Renderer3D::DrawModel(transform.GetTransform(), model, (int)entity);
-				// }
-
 				auto view = m_Registry.view<TransformComponent, ModelRendererComponent, HierarchyComponent>();
+
 				for (auto entityID : view)
 				{
 					Entity entity{entityID, this};
 
-					// 只有根节点才需要启动递归计算
 					if (entity.GetComponent<HierarchyComponent>().Parent == 0)
 					{
 						auto transform = entity.GetComponent<TransformComponent>().GetTransform();
@@ -290,15 +283,12 @@ namespace Mc
 							MeshRendererComponent *mesh = m_Registry.try_get<MeshRendererComponent>(childEntity);
 							MaterialComponent *material = m_Registry.try_get<MaterialComponent>(childEntity);
 							Renderer3D::DrawModel(worldTransform, model, mesh, material, (int)entityID);
-							// Renderer3D::DrawModel(worldTransform, model, (int)entityID);
 						}
 					}
 				}
 			}
-
 			Renderer3D::EndScene();
 		}
-
 	}
 
 	void Scene::OnUpdateSimulation(Timestep ts, EditorCamera& camera)
@@ -427,7 +417,7 @@ namespace Mc
 			}
 		}
 
-		// Draw sprites
+		// Draw sphere
 		{
 			auto view = m_Registry.view<TransformComponent, SphereRendererComponent>();
 			for (auto entity : view)
@@ -439,19 +429,12 @@ namespace Mc
 		}
 
 		{
-			// auto view = m_Registry.view<TransformComponent, ModelRendererComponent>();
-			// for (auto entity : view)
-			// {
-			// 	auto [transform, model] = view.get<TransformComponent, ModelRendererComponent>(entity);
-			// 	Renderer3D::DrawModel(transform.GetTransform(), model, (int)entity);
-			// }
 			auto view = m_Registry.view<TransformComponent, ModelRendererComponent, HierarchyComponent>();
 
 			for (auto entityID : view)
 			{
 				Entity entity{entityID, this};
 
-				// 只有根节点才需要启动递归计算
 				if (entity.GetComponent<HierarchyComponent>().Parent == 0)
 				{
 					auto transform = entity.GetComponent<TransformComponent>().GetTransform();
@@ -462,7 +445,6 @@ namespace Mc
 						MeshRendererComponent *mesh = m_Registry.try_get<MeshRendererComponent>(childEntity);
 						MaterialComponent *material = m_Registry.try_get<MaterialComponent>(childEntity);
 						Renderer3D::DrawModel(worldTransform, model, mesh, material, (int)entityID);
-						// Renderer3D::DrawModel(worldTransform, model, (int)entityID);
 					}
 				}
 			}
@@ -551,7 +533,7 @@ namespace Mc
 		// 	Entity entity = {m_Registry.create(), this};
 		// 	entity.AddComponent<IDComponent>();
 		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(-1.0f, 0.5f, 0.0f);
+		// 	transform.Translation = glm::vec3(0.0f, 0.0f, 0.0f);
 
 		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
 		// 	sphere.IsMaterial = true;
@@ -644,42 +626,42 @@ namespace Mc
 		// 	m_EntityMap[uuid] = entity;
 		// }
 
-		{
-			auto uuid = UUID();
-			Entity entity = {m_Registry.create(), this};
-			entity.AddComponent<IDComponent>();
-			entity.AddComponent<TransformComponent>();
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	entity.AddComponent<TransformComponent>();
 
-			auto &obj = entity.AddComponent<ModelRendererComponent>();
-			obj.FlipUV = true;
-			obj.ModelPath = "Assets/objs/backpack/backpack.obj";
-			obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
+		// 	auto &obj = entity.AddComponent<ModelRendererComponent>();
+		// 	obj.FlipUV = true;
+		// 	obj.ModelPath = "Assets/objs/backpack/backpack.obj";
+		// 	obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
 
-			{
-				auto &hierarchy = entity.AddComponent<HierarchyComponent>();
-				for (Ref<Mesh> &obj : obj.Model->GetMeshs())
-				{
-					Entity subEntity = entity.CreateChild(obj->GetName());
-					auto &mesh = subEntity.AddComponent<MeshRendererComponent>();
-					mesh.Id = obj->GetID();
-					hierarchy.Children.push_back(subEntity.GetUUID());
+		// 	{
+		// 		auto &hierarchy = entity.AddComponent<HierarchyComponent>();
+		// 		for (Ref<Mesh> &obj : obj.Model->GetMeshs())
+		// 		{
+		// 			Entity subEntity = entity.CreateChild(obj->GetName());
+		// 			auto &mesh = subEntity.AddComponent<MeshRendererComponent>();
+		// 			mesh.Id = obj->GetID();
+		// 			hierarchy.Children.push_back(subEntity.GetUUID());
 
-					mesh.IsMaterial = true;
-					subEntity.AddComponent<MaterialComponent>();
-					auto &material = subEntity.GetComponent<MaterialComponent>();
-					material.AlbedoMap = "Assets/objs/backpack/textures/diffuse.jpg";
-					material.NormalMap = "Assets/objs/backpack/textures/normal.png";
-					material.MetallicMap = "Assets/objs/backpack/textures/specular.jpg";
-					material.RoughnessMap = "Assets/objs/backpack/textures/roughness.jpg";
-					material.AmbientOcclusionMap = "Assets/objs/backpack/textures/ao.jpg";
-				}
-			}
+		// 			mesh.IsMaterial = true;
+		// 			subEntity.AddComponent<MaterialComponent>();
+		// 			auto &material = subEntity.GetComponent<MaterialComponent>();
+		// 			material.AlbedoMap = "Assets/objs/backpack/textures/diffuse.jpg";
+		// 			material.NormalMap = "Assets/objs/backpack/textures/normal.png";
+		// 			material.MetallicMap = "Assets/objs/backpack/textures/specular.jpg";
+		// 			material.RoughnessMap = "Assets/objs/backpack/textures/roughness.jpg";
+		// 			material.AmbientOcclusionMap = "Assets/objs/backpack/textures/ao.jpg";
+		// 		}
+		// 	}
 
-			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "obj Model 0";
+		// 	auto &tag = entity.AddComponent<TagComponent>();
+		// 	tag.Tag = "obj Model 0";
 
-			m_EntityMap[uuid] = entity;
-		}
+		// 	m_EntityMap[uuid] = entity;
+		// }
 
 		// {
 		// 	auto uuid = UUID();
@@ -718,16 +700,53 @@ namespace Mc
 		// 	}
 		// }
 
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	auto &transform = entity.AddComponent<TransformComponent>();
+		// 	transform.Translation = glm::vec3(0.0f, -5.0f, 0.0f);
+		// 	transform.Scale = glm::vec3(0.1f);
+
+		// 	auto &obj = entity.AddComponent<ModelRendererComponent>();
+		// 	obj.ModelPath = "Assets/objs/floor-material/source/plane.fbx";
+		// 	obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
+		// 	{
+		// 		auto &hierarchy = entity.AddComponent<HierarchyComponent>();
+		// 		for (Ref<Mesh> &obj : obj.Model->GetMeshs())
+		// 		{
+		// 			Entity subEntity = entity.CreateChild(obj->GetName());
+		// 			auto &mesh = subEntity.AddComponent<MeshRendererComponent>();
+		// 			mesh.Id = obj->GetID();
+		// 			hierarchy.Children.push_back(subEntity.GetUUID());
+
+		// 			mesh.IsMaterial = true;
+		// 			subEntity.AddComponent<MaterialComponent>();
+		// 			auto &material = subEntity.GetComponent<MaterialComponent>();
+		// 			material.AlbedoMap = "Assets/objs/floor-material/textures/Floortile1Color.png";
+		// 			material.NormalMap = "Assets/objs/floor-material/textures/Floortile1Normal.png";
+		// 			material.RoughnessMap = "Assets/objs/floor-material/textures/Floortile1Roughness.png";
+		// 			material.AmbientOcclusionMap = "Assets/objs/floor-material/textures/Floortile1AO.png";
+		// 		}
+
+		// 		auto &tag = entity.AddComponent<TagComponent>();
+		// 		tag.Tag = "obj Model 2";
+
+		// 		m_EntityMap[uuid] = entity;
+		// 	}
+		// }
+
 		{
 			auto uuid = UUID();
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
 			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(0.0f, -5.0f, 0.0f);
-			transform.Scale = glm::vec3(0.1f);
+			transform.Translation = glm::vec3(0.0f, -1.0f, 0.0f);
+			transform.Scale = glm::vec3(0.05f);
+			transform.Rotation = glm::vec3(glm::radians(-90.0f), 0.0f, 0.0f);
 
 			auto &obj = entity.AddComponent<ModelRendererComponent>();
-			obj.ModelPath = "Assets/objs/floor-material/source/plane.fbx";
+			obj.ModelPath = "Assets/objs/animated-fire/source/Animated_fire.fbx";
 			obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
 			{
 				auto &hierarchy = entity.AddComponent<HierarchyComponent>();
@@ -741,14 +760,15 @@ namespace Mc
 					mesh.IsMaterial = true;
 					subEntity.AddComponent<MaterialComponent>();
 					auto &material = subEntity.GetComponent<MaterialComponent>();
-					material.AlbedoMap = "Assets/objs/floor-material/textures/Floortile1Color.png";
-					material.NormalMap = "Assets/objs/floor-material/textures/Floortile1Normal.png";
-					material.RoughnessMap = "Assets/objs/floor-material/textures/Floortile1Roughness.png";
-					material.AmbientOcclusionMap = "Assets/objs/floor-material/textures/Floortile1AO.png";
+					material.AlbedoMap = "Assets/objs/animated-fire/textures/Buches.jpeg";
+					// material.NormalMap = "Assets/objs/animated-fire/textures/Floortile1Normal.png";
+					// material.RoughnessMap = "Assets/objs/animated-fire/textures/Floortile1Roughness.png";
+					material.AmbientOcclusionMap = "Assets/objs/animated-fire/textures/CendresA.png";
+					material.EmissiveMap = "Assets/objs/animated-fire/textures/BuchesE.jpg";
 				}
 
 				auto &tag = entity.AddComponent<TagComponent>();
-				tag.Tag = "obj Model 2";
+				tag.Tag = "obj Model 3";
 
 				m_EntityMap[uuid] = entity;
 			}
@@ -798,23 +818,23 @@ namespace Mc
 		// 	m_EntityMap[uuid] = entity;
 		// }
 
-		{
-			auto uuid = UUID();
-			Entity entity = {m_Registry.create(), this};
-			entity.AddComponent<IDComponent>();
-			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(6.0f, 4.0f, 4.0f);
-			transform.Rotation = glm::vec3(-0.5f, 1.0f, 0.0f);
+		// {
+		// 	auto uuid = UUID();
+		// 	Entity entity = {m_Registry.create(), this};
+		// 	entity.AddComponent<IDComponent>();
+		// 	auto &transform = entity.AddComponent<TransformComponent>();
+		// 	transform.Translation = glm::vec3(6.0f, 4.0f, 4.0f);
+		// 	transform.Rotation = glm::vec3(-0.5f, 1.0f, 0.0f);
 			
 
-			auto& light = entity.AddComponent<SpotLightComponent>();
-			light.Intensity = 10.0f;
-			light.Radius = 20.0f;
+		// 	auto& light = entity.AddComponent<SpotLightComponent>();
+		// 	light.Intensity = 10.0f;
+		// 	light.Radius = 20.0f;
 
-			auto &tag = entity.AddComponent<TagComponent>();
-			tag.Tag = "Spot Light";
-			m_EntityMap[uuid] = entity;
-		}
+		// 	auto &tag = entity.AddComponent<TagComponent>();
+		// 	tag.Tag = "Spot Light";
+		// 	m_EntityMap[uuid] = entity;
+		// }
 	}
 
 	template <typename T>

@@ -32,15 +32,21 @@ namespace Mc
 
     void EditorLayer::OnAttach()
     {
+        m_IconPlay = Texture2D::Create("Resources/Icons/PlayButton.png");
+        m_IconPause = Texture2D::Create("Resources/Icons/PauseButton.png");
+        m_IconSimulate = Texture2D::Create("Resources/Icons/SimulateButton.png");
+        m_IconStep = Texture2D::Create("Resources/Icons/StepButton.png");
+        m_IconStop = Texture2D::Create("Resources/Icons/StopButton.png");
+
         FramebufferSpecification fbSpec;
         fbSpec.Attachments = {FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::RED_INTEGER, FramebufferTextureFormat::DEPTH24STENCIL8};
         fbSpec.Width = Application::Get().GetWindow().GetWidth();
         fbSpec.Height = Application::Get().GetWindow().GetHeight();
 
-        m_EditorFramebuffer = Framebuffer::Create(fbSpec);
+        m_Framebuffer = Framebuffer::Create(fbSpec);
         m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 100.0f);
 
-        m_GameFramebuffer = Framebuffer::Create(fbSpec);
+        // m_GameFramebuffer = Framebuffer::Create(fbSpec);
 
         m_EditorScene = CreateRef<Scene>();
         m_ActiveScene = m_EditorScene;
@@ -52,63 +58,71 @@ namespace Mc
 
     void EditorLayer::OnUpdate(Timestep ts)
     {
+        m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+        
         // Edit
-        if (FramebufferSpecification spec = m_EditorFramebuffer->GetSpecification();
-            m_EditorViewportSize.x > 0.0f && m_EditorViewportSize.y > 0.0f && // zero sized framebuffer is invalid
-            (spec.Width != m_EditorViewportSize.x || spec.Height != m_EditorViewportSize.y))
+        if (FramebufferSpecification spec = m_Framebuffer->GetSpecification();
+            m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
+            (spec.Width != m_ViewportSize.x || spec.Height != m_ViewportSize.y))
         {
-            m_EditorFramebuffer->Resize((uint32_t)m_EditorViewportSize.x, (uint32_t)m_EditorViewportSize.y);
-            m_EditorCamera.SetViewportSize(m_EditorViewportSize.x, m_EditorViewportSize.y);
+            m_Framebuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+            m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
         }
 
         Renderer3D::ResetStats();
-        m_EditorFramebuffer->Bind();
+        m_Framebuffer->Bind();
         Renderer::SetClearColor(glm::vec4(0.3f, 0.3f, 0.3f, 1.0f));
         Renderer::Clear();
 
         // Clear our entity ID attachment to -1
-        m_EditorFramebuffer->ClearAttachment(1, -1);
+        m_Framebuffer->ClearAttachment(1, -1);
 
-        if (m_EditorViewportFocused && m_EditorViewportHovered)
-            m_EditorCamera.OnUpdate(ts);
+        
+        switch (m_SceneState)
+		{
+			case SceneState::Edit:
+			{
+				// if (m_ViewportFocused)
+				// 	m_CameraController.OnUpdate(ts);
 
-        m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera);
+				m_EditorCamera.OnUpdate(ts);
+
+				m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera);
+				break;
+			}
+			case SceneState::Simulate:
+			{
+				m_EditorCamera.OnUpdate(ts);
+
+				m_ActiveScene->OnUpdateSimulation(ts, m_EditorCamera);
+				break;
+			}
+			case SceneState::Play:
+			{
+				m_ActiveScene->OnUpdateRuntime(ts);
+				break;
+			}
+		}
 
         {
             auto [mx, my] = ImGui::GetMousePos();
-            mx -= m_EditorViewportBounds[0].x;
-            my -= m_EditorViewportBounds[0].y;
-            glm::vec2 viewportSize = m_EditorViewportBounds[1] - m_EditorViewportBounds[0];
+            mx -= m_ViewportBounds[0].x;
+            my -= m_ViewportBounds[0].y;
+            glm::vec2 viewportSize = m_ViewportBounds[1] - m_ViewportBounds[0];
             my = viewportSize.y - my;
             int mouseX = (int)mx;
             int mouseY = (int)my;
 
             if (mouseX >= 0 && mouseY >= 0 && mouseX < (int)viewportSize.x && mouseY < (int)viewportSize.y)
             {
-                int pixelData = m_EditorFramebuffer->ReadPixel(1, mouseX, mouseY);
+                int pixelData = m_Framebuffer->ReadPixel(1, mouseX, mouseY);
                 m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
             }
         }
 
         // Renderer3D::BeginScene(m_EditCameraController.GetCamera());
         OnOverlayRender();
-        m_EditorFramebuffer->UnBind();
-
-        // // Game
-        // ------------------------------------------------------------------------------------
-        if (FramebufferSpecification spec = m_GameFramebuffer->GetSpecification();
-            m_GameViewportSize.x > 0.0f && m_GameViewportSize.y > 0.0f && // zero sized framebuffer is invalid
-            (spec.Width != m_GameViewportSize.x || spec.Height != m_GameViewportSize.y))
-        {
-            m_GameFramebuffer->Resize((uint32_t)m_GameViewportSize.x, (uint32_t)m_GameViewportSize.y);
-            m_ActiveScene->OnViewportResize((uint32_t)m_GameViewportSize.x, (uint32_t)m_GameViewportSize.y);
-        }
-
-        m_GameFramebuffer->Bind();
-        Renderer::SetClearColor(glm::vec4(0.3f, 0.3f, 0.3f, 1.0f));
-        Renderer::Clear();
-        m_ActiveScene->OnUpdateRuntime(ts);
-        m_GameFramebuffer->UnBind();
+        m_Framebuffer->UnBind();
     }
 
     void EditorLayer::OnImGuiRender()
@@ -242,21 +256,21 @@ namespace Mc
             auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
             auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
             auto viewportOffset = ImGui::GetWindowPos();
-            m_EditorViewportBounds[0] = {viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y};
-            m_EditorViewportBounds[1] = {viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y};
+            m_ViewportBounds[0] = {viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y};
+            m_ViewportBounds[1] = {viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y};
 
-            m_EditorViewportFocused = ImGui::IsWindowFocused();
-            m_EditorViewportHovered = ImGui::IsWindowHovered();
+            m_ViewportFocused = ImGui::IsWindowFocused();
+            m_ViewportHovered = ImGui::IsWindowHovered();
 
             if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
             {
                 m_SceneState = SceneState::Edit;
-                Application::Get().GetImGuiLayer()->BlockEvents(!m_EditorViewportFocused && !m_EditorViewportHovered);
+                Application::Get().GetImGuiLayer()->BlockEvents(!m_ViewportFocused && !m_ViewportHovered);
             }
         }
 
-        m_EditorViewportSize = {ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y};
-        ImGui::Image(reinterpret_cast<void *>(m_EditorFramebuffer->GetColorAttachmentRendererID()), ImVec2{m_EditorViewportSize.x, m_EditorViewportSize.y}, ImVec2{0, 1}, ImVec2{1, 0});
+        m_ViewportSize = {ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y};
+        ImGui::Image(reinterpret_cast<void *>(m_Framebuffer->GetColorAttachmentRendererID()), ImVec2{m_ViewportSize.x, m_ViewportSize.y}, ImVec2{0, 1}, ImVec2{1, 0});
 
         if (ImGui::BeginDragDropTarget())
         {
@@ -279,8 +293,8 @@ namespace Mc
             ImGuizmo::SetOrthographic(false);
             ImGuizmo::SetDrawlist();
 
-            ImGuizmo::SetRect(m_EditorViewportBounds[0].x, m_EditorViewportBounds[0].y,
-                              m_EditorViewportBounds[1].x - m_EditorViewportBounds[0].x, m_EditorViewportBounds[1].y - m_EditorViewportBounds[0].y);
+            ImGuizmo::SetRect(m_ViewportBounds[0].x, m_ViewportBounds[0].y,
+                              m_ViewportBounds[1].x - m_ViewportBounds[0].x, m_ViewportBounds[1].y - m_ViewportBounds[0].y);
 
             // Camera
 
@@ -326,36 +340,14 @@ namespace Mc
         ImGui::End();
         ImGui::PopStyleVar();
 
-        // ------------------------------------------------------------------------------------------------
-        // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
-        // ImGui::Begin("Game");
-        // {
-        //     auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
-        //     auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
-        //     auto viewportOffset = ImGui::GetWindowPos();
-        //     m_GameViewportBounds[0] = {viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y};
-        //     m_GameViewportBounds[1] = {viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y};
-
-        //     m_GameViewportFocused = ImGui::IsWindowFocused();
-        //     m_GameViewportHovered = ImGui::IsWindowHovered();
-        // }
-
-        // if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
-        // {
-        //     m_SceneState = SceneState::Game;
-        //     Application::Get().GetImGuiLayer()->BlockEvents(!m_GameViewportFocused && !m_GameViewportHovered);
-        // }
-        // m_GameViewportSize = {ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y};
-        // ImGui::Image(reinterpret_cast<void *>(m_GameFramebuffer->GetColorAttachmentRendererID()), ImVec2{m_GameViewportSize.x, m_GameViewportSize.y}, ImVec2{0, 1}, ImVec2{1, 0});
-        // ImGui::End();
-        // ImGui::PopStyleVar();
+        UI_Toolbar();
 
         ImGui::End();
     }
 
     void EditorLayer::OnEvent(Event &e)
     {
-        if (m_SceneState == SceneState::Edit && m_EditorViewportHovered)
+        if (m_SceneState == SceneState::Edit && m_ViewportHovered)
             m_EditorCamera.OnEvent(e);
 
         EventDispatcher dispatcher(e);
@@ -399,6 +391,13 @@ namespace Mc
 
                 break;
             }
+            case Key::D:
+            {
+                if (control)
+                    OnDuplicateEntity();
+
+                break;
+            }
 
             // Gizmos
             case Key::Q:
@@ -433,7 +432,7 @@ namespace Mc
     {
         if (e.GetMouseButton() == Mouse::ButtonLeft)
         {
-            if (m_EditorViewportHovered && !ImGuizmo::IsOver() && !Input::IsKeyPressed(Key::LeftAlt))
+            if (m_ViewportHovered && !ImGuizmo::IsOver() && !Input::IsKeyPressed(Key::LeftAlt))
                 m_SceneHierarchyPanel.SetSelectedEntity(m_HoveredEntity);
         }
         return false;
@@ -456,11 +455,11 @@ namespace Mc
 
     void EditorLayer::NewScene()
     {
-        m_ActiveScene = CreateRef<Scene>();
-        m_ActiveScene->OnViewportResize((uint32_t)m_GameViewportSize.x, (uint32_t)m_GameViewportSize.y);
-        m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+        m_EditorScene = CreateRef<Scene>();
+        m_SceneHierarchyPanel.SetContext(m_EditorScene);
 
-        m_ActiveScene->NewScene();
+        m_EditorScene->NewScene();
+        m_ActiveScene = m_EditorScene;
         m_EditorScenePath = std::filesystem::path();
     }
 
@@ -473,19 +472,18 @@ namespace Mc
 
     void EditorLayer::OpenScene(const std::filesystem::path &path)
     {
-        // if (m_SceneState != SceneState::Edit)
-        //     OnSceneStop();
+        if (m_SceneState != SceneState::Edit)
+            OnSceneStop();
 
         Ref<Scene> newScene = CreateRef<Scene>();
         SceneSerializer serializer(newScene);
         if (serializer.Deserialize(path.string()))
         {
             m_EditorScene = newScene;
-            m_EditorScene->OnViewportResize((uint32_t)m_EditorViewportSize.x, (uint32_t)m_EditorViewportSize.y);
+            m_EditorScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
             m_SceneHierarchyPanel.SetContext(m_EditorScene);
 
             m_ActiveScene = m_EditorScene;
-            m_ActiveScene->OnViewportResize((uint32_t)m_GameViewportSize.x, (uint32_t)m_GameViewportSize.y);
             m_EditorScenePath = path;
         }
     }
@@ -512,5 +510,132 @@ namespace Mc
     {
         SceneSerializer serializer(scene);
         serializer.Serialize(path);
+    }
+
+    void EditorLayer::OnScenePlay()
+    {
+        if (m_SceneState == SceneState::Simulate)
+            OnSceneStop();
+
+        m_SceneState = SceneState::Play;
+
+        m_ActiveScene = Scene::Copy(m_EditorScene);
+        m_ActiveScene->OnRuntimeStart();
+
+		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+    }
+
+    void EditorLayer::OnSceneSimulate()
+    {
+        if (m_SceneState == SceneState::Play)
+            OnSceneStop();
+
+        m_SceneState = SceneState::Simulate;
+
+        m_ActiveScene = Scene::Copy(m_EditorScene);
+        m_ActiveScene->OnSimulationStart();
+
+        m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+    }
+    void EditorLayer::OnSceneStop()
+    {
+        if (m_SceneState == SceneState::Play)
+            m_ActiveScene->OnRuntimeStop();
+        else if (m_SceneState == SceneState::Simulate)
+            m_ActiveScene->OnSimulationStop();
+
+        m_SceneState = SceneState::Edit;
+
+        m_ActiveScene = m_EditorScene;
+        m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+    }
+
+    void EditorLayer::OnScenePause()
+    {
+        if (m_SceneState == SceneState::Edit)
+            return;
+
+        m_ActiveScene->SetPaused(true);
+    }
+
+    void EditorLayer::UI_Toolbar()
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 2));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(0, 0));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        auto &colors = ImGui::GetStyle().Colors;
+        const auto &buttonHovered = colors[ImGuiCol_ButtonHovered];
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(buttonHovered.x, buttonHovered.y, buttonHovered.z, 0.5f));
+        const auto &buttonActive = colors[ImGuiCol_ButtonActive];
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(buttonActive.x, buttonActive.y, buttonActive.z, 0.5f));
+
+        // float toolbarHeight = 40.0f;
+        // ImGui::SetNextWindowSize(ImVec2(ImGui::GetWindowViewport()->Size.x, toolbarHeight));
+
+        ImGui::Begin("##toolbar", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar);
+
+        bool toolbarEnabled = (bool)m_ActiveScene;
+
+        ImVec4 bgColor = ImVec4(0, 0, 0, 0); // 背景色，通常透明
+        ImVec4 tintColor = ImVec4(1, 1, 1, 1);
+        if (!toolbarEnabled)
+            tintColor.w = 0.5f;
+
+        float size = ImGui::GetWindowHeight() / 2;
+        ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 0.5f));
+
+        bool hasPlayButton = m_SceneState == SceneState::Edit || m_SceneState == SceneState::Play;
+        bool hasSimulateButton = m_SceneState == SceneState::Edit || m_SceneState == SceneState::Simulate;
+        bool hasPauseButton = m_SceneState != SceneState::Edit;
+
+        if (hasPlayButton)
+        {
+            Ref<Texture2D> icon = (m_SceneState == SceneState::Edit || m_SceneState == SceneState::Simulate) ? m_IconPlay : m_IconStop;
+            const char *buttonID = (m_SceneState == SceneState::Play) ? "##EditButton" : "##PlayButton";
+            ImTextureID textureID = (ImTextureID)icon->GetRendererID();
+
+            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(size, size), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
+            {
+                if (m_SceneState == SceneState::Edit || m_SceneState == SceneState::Simulate)
+                    OnScenePlay();
+                else if (m_SceneState == SceneState::Play)
+                    OnSceneStop();
+            }
+        }
+
+        if (hasSimulateButton)
+        {
+            if (hasPlayButton)
+                ImGui::SameLine();
+
+            Ref<Texture2D> icon = (m_SceneState == SceneState::Edit || m_SceneState == SceneState::Play) ? m_IconSimulate : m_IconStop;
+            const char *buttonID = (m_SceneState == SceneState::Simulate) ? "##EditButton" : "##SimulateButton";
+            ImTextureID textureID = (ImTextureID)icon->GetRendererID();
+
+            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(size, size), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
+            {
+                if (m_SceneState == SceneState::Edit || m_SceneState == SceneState::Play)
+                    OnSceneSimulate();
+                else if (m_SceneState == SceneState::Simulate)
+                    OnSceneStop();
+            }
+        }
+
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor(3);
+        ImGui::End();
+    }
+
+    void EditorLayer::OnDuplicateEntity()
+    {
+        if (m_SceneState != SceneState::Edit)
+            return;        
+
+        Entity selectedEntity = m_SceneHierarchyPanel.GetSelectedEntity();
+
+        if (selectedEntity)
+        {
+            m_EditorScene->DuplicateEntity(selectedEntity);
+        }
     }
 }
