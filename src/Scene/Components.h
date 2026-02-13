@@ -146,6 +146,8 @@ namespace Mc
 
 		bool GammaCorrection = false;
 
+		bool ReceivesAnimator = false;
+
 		ModelRendererComponent() = default;
 		ModelRendererComponent(const ModelRendererComponent &) = default;
 	};

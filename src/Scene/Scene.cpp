@@ -223,7 +223,7 @@ namespace Mc
 				for (auto entity : directionalLightsView)
 				{
 					auto [transform, light] = directionalLightsView.get<TransformComponent, DirectionalLightComponent>(entity);
-					ShadowComponent* shadow = m_Registry.try_get<ShadowComponent>(entity);
+					ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entity);
 					Renderer3D::DrawDirectionalLight(transform.GetTransform(), light, shadow, (int)entity);
 				}
 
@@ -231,7 +231,7 @@ namespace Mc
 				for (auto entity : pointLightsView)
 				{
 					auto [transform, light] = pointLightsView.get<TransformComponent, PointLightComponent>(entity);
-					ShadowComponent* shadow = m_Registry.try_get<ShadowComponent>(entity);
+					ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entity);
 					Renderer3D::DrawPointLight(transform.GetTransform(), light, shadow, (int)entity);
 				}
 
@@ -239,7 +239,7 @@ namespace Mc
 				for (auto entity : spotLightsView)
 				{
 					auto [transform, light] = spotLightsView.get<TransformComponent, SpotLightComponent>(entity);
-					ShadowComponent* shadow = m_Registry.try_get<ShadowComponent>(entity);
+					ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entity);
 					Renderer3D::DrawSpotLight(transform.GetTransform(), light, shadow, (int)entity);
 				}
 			}
@@ -284,6 +284,7 @@ namespace Mc
 							MaterialComponent *material = m_Registry.try_get<MaterialComponent>(childEntity);
 							Renderer3D::DrawModel(worldTransform, model, mesh, material, (int)entityID);
 						}
+						if (model.ReceivesAnimator) model.Model->GetAnimator()->UpdateAnimation(ts);
 					}
 				}
 			}
@@ -461,7 +462,7 @@ namespace Mc
 			entity.AddComponent<IDComponent>();
 
 			auto &hdrSkybox = entity.AddComponent<HdrSkyboxComponent>();
-			hdrSkybox.Path = "Assets/textures/hdr/newport_loft.hdr";
+			hdrSkybox.Path = "Assets/textures/hdr/citrus_orchard_road_puresky_4k.hdr";
 
 			auto &tag = entity.AddComponent<TagComponent>();
 			tag.Tag = "Hdr Skybox";
@@ -474,8 +475,9 @@ namespace Mc
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
 			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(0.0f, 0.0f, 10.0f);
-			auto & camera = entity.AddComponent<CameraComponent>();
+			transform.Translation = glm::vec3(-9.0f, 0.0f, -6.0f);
+			transform.Rotation = glm::vec3(glm::radians(-11.0f), glm::radians(-140.0f), 0.0f);
+			auto &camera = entity.AddComponent<CameraComponent>();
 			camera.Camera.SetProjectionType(SceneCamera::ProjectionType::Perspective);
 
 			auto &tag = entity.AddComponent<TagComponent>();
@@ -484,269 +486,179 @@ namespace Mc
 			m_EntityMap[uuid] = entity;
 		}
 
-		// int n = 300;
-		// for (int i = 0; i < n; i++)
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(-4.0f, 2.2f, 0.0f);
-
-		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
-		// 	sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/grass/albedo.png");
-		// 	sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/grass/normal.png");
-		// 	sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/grass/metallic.png");
-		// 	sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/grass/roughness.png");
-		// 	sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/grass/ao.png");
-		// 	sphere.Material->SetAlbedo(glm::vec4(1.0f));
-
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "Grass";
-
-		// 	m_EntityMap[uuid] = entity;
-		// }
-
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(-2.0f, 2.2f, 0.0f);
-
-		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
-		// 	sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/gold/albedo.png");
-		// 	sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/gold/normal.png");
-		// 	sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/gold/metallic.png");
-		// 	sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/gold/roughness.png");
-		// 	sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/gold/ao.png");
-		// 	sphere.Material->SetAlbedo(glm::vec4(1.0f));
-
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "Gold";
-
-		// 	m_EntityMap[uuid] = entity;
-		// }
-
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(0.0f, 0.0f, 0.0f);
-
-		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
-		// 	sphere.IsMaterial = true;
-		// 	entity.AddComponent<MaterialComponent>();
-		// 	auto &material = entity.GetComponent<MaterialComponent>();
-		// 	material.AlbedoMap = "Assets/textures/pbr/plastic/albedo.png";
-		// 	material.NormalMap = "Assets/textures/pbr/plastic/normal.png";
-		// 	material.MetallicMap = "Assets/textures/pbr/plastic/metallic.png";
-		// 	material.RoughnessMap = "Assets/textures/pbr/plastic/roughness.png";
-		// 	material.AmbientOcclusionMap = "Assets/textures/pbr/plastic/ao.png";
-
-
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "Plastic";
-
-		// 	m_EntityMap[uuid] = entity;
-		// }
-
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(1.0f, 0.5f, 0.0f);
-
-		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
-
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "Plastic";
-
-		// 	m_EntityMap[uuid] = entity;
-		// }
-
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(-6.0f, -4.0f, 0.0f);
-		// 	transform.Scale = glm::vec3(5.0f, 5.0f, 5.0f);
-
-		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
-
-
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "chassis";
-
-		// 	m_EntityMap[uuid] = entity;
-		// }
-
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(2.0f, 2.2f, 0.0f);
-
-		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
-		// 	sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/rusted_iron/albedo.png");
-		// 	sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/rusted_iron/normal.png");
-		// 	sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/rusted_iron/metallic.png");
-		// 	sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/rusted_iron/roughness.png");
-		// 	sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/rusted_iron/ao.png");
-		// 	sphere.Material->SetAlbedo(glm::vec4(1.0f));
-
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "Rusted_iron";
-
-		// 	m_EntityMap[uuid] = entity;
-		// }
-
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(4.0f, 2.2f, 0.0f);
-
-		// 	auto &sphere = entity.AddComponent<SphereRendererComponent>();
-		// 	sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/wall/albedo.png");
-		// 	sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/wall/normal.png");
-		// 	sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/wall/metallic.png");
-		// 	sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/wall/roughness.png");
-		// 	sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/wall/ao.png");
-		// 	sphere.Material->SetAlbedo(glm::vec4(1.0f));
-
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "Wall";
-
-		// 	m_EntityMap[uuid] = entity;
-		// }
-
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	entity.AddComponent<TransformComponent>();
-
-		// 	auto &obj = entity.AddComponent<ModelRendererComponent>();
-		// 	obj.FlipUV = true;
-		// 	obj.ModelPath = "Assets/objs/backpack/backpack.obj";
-		// 	obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
-
-		// 	{
-		// 		auto &hierarchy = entity.AddComponent<HierarchyComponent>();
-		// 		for (Ref<Mesh> &obj : obj.Model->GetMeshs())
-		// 		{
-		// 			Entity subEntity = entity.CreateChild(obj->GetName());
-		// 			auto &mesh = subEntity.AddComponent<MeshRendererComponent>();
-		// 			mesh.Id = obj->GetID();
-		// 			hierarchy.Children.push_back(subEntity.GetUUID());
-
-		// 			mesh.IsMaterial = true;
-		// 			subEntity.AddComponent<MaterialComponent>();
-		// 			auto &material = subEntity.GetComponent<MaterialComponent>();
-		// 			material.AlbedoMap = "Assets/objs/backpack/textures/diffuse.jpg";
-		// 			material.NormalMap = "Assets/objs/backpack/textures/normal.png";
-		// 			material.MetallicMap = "Assets/objs/backpack/textures/specular.jpg";
-		// 			material.RoughnessMap = "Assets/objs/backpack/textures/roughness.jpg";
-		// 			material.AmbientOcclusionMap = "Assets/objs/backpack/textures/ao.jpg";
-		// 		}
-		// 	}
-
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "obj Model 0";
-
-		// 	m_EntityMap[uuid] = entity;
-		// }
-
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(0.0f, 0.0f, 0.0f);
-
-		// 	auto &obj = entity.AddComponent<ModelRendererComponent>();
-		// 	obj.ModelPath = "Assets/objs/Spaceship/Spaceship.obj";
-		// 	obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
-		// 	{
-		// 		auto &hierarchy = entity.AddComponent<HierarchyComponent>();
-		// 		for (Ref<Mesh> &obj : obj.Model->GetMeshs())
-		// 		{
-		// 			Entity subEntity = entity.CreateChild(obj->GetName());
-		// 			auto &mesh = subEntity.AddComponent<MeshRendererComponent>();
-		// 			mesh.Id = obj->GetID();
-		// 			hierarchy.Children.push_back(subEntity.GetUUID());
-
-		// 			mesh.IsMaterial = true;
-		// 			subEntity.AddComponent<MaterialComponent>();
-		// 			auto &material = subEntity.GetComponent<MaterialComponent>();
-		// 			material.AlbedoMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_color_4.jpg";
-		// 			material.NormalMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_nmap_2_Tris.jpg";
-		// 			material.MetallicMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_metalness.jpg";
-		// 			material.RoughnessMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_rough.jpg";
-		// 			material.AmbientOcclusionMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship Ao_Blender.jpg";
-		// 			material.EmissiveMap = "Assets/objs/Spaceship/textures/Intergalactic Spaceship_emi.jpg";
-		// 		}
-
-		// 		auto &tag = entity.AddComponent<TagComponent>();
-		// 		tag.Tag = "obj Model 1";
-
-		// 		m_EntityMap[uuid] = entity;
-		// 	}
-		// }
-
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(0.0f, -5.0f, 0.0f);
-		// 	transform.Scale = glm::vec3(0.1f);
-
-		// 	auto &obj = entity.AddComponent<ModelRendererComponent>();
-		// 	obj.ModelPath = "Assets/objs/floor-material/source/plane.fbx";
-		// 	obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
-		// 	{
-		// 		auto &hierarchy = entity.AddComponent<HierarchyComponent>();
-		// 		for (Ref<Mesh> &obj : obj.Model->GetMeshs())
-		// 		{
-		// 			Entity subEntity = entity.CreateChild(obj->GetName());
-		// 			auto &mesh = subEntity.AddComponent<MeshRendererComponent>();
-		// 			mesh.Id = obj->GetID();
-		// 			hierarchy.Children.push_back(subEntity.GetUUID());
-
-		// 			mesh.IsMaterial = true;
-		// 			subEntity.AddComponent<MaterialComponent>();
-		// 			auto &material = subEntity.GetComponent<MaterialComponent>();
-		// 			material.AlbedoMap = "Assets/objs/floor-material/textures/Floortile1Color.png";
-		// 			material.NormalMap = "Assets/objs/floor-material/textures/Floortile1Normal.png";
-		// 			material.RoughnessMap = "Assets/objs/floor-material/textures/Floortile1Roughness.png";
-		// 			material.AmbientOcclusionMap = "Assets/objs/floor-material/textures/Floortile1AO.png";
-		// 		}
-
-		// 		auto &tag = entity.AddComponent<TagComponent>();
-		// 		tag.Tag = "obj Model 2";
-
-		// 		m_EntityMap[uuid] = entity;
-		// 	}
-		// }
-
+		/*
+		int n = 300;
+		for (int i = 0; i < n; i++)
 		{
 			auto uuid = UUID();
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
 			auto &transform = entity.AddComponent<TransformComponent>();
-			transform.Translation = glm::vec3(0.0f, -1.0f, 0.0f);
-			transform.Scale = glm::vec3(0.05f);
-			transform.Rotation = glm::vec3(glm::radians(-90.0f), 0.0f, 0.0f);
+			transform.Translation = glm::vec3(-4.0f, 2.2f, 0.0f);
+
+			auto &sphere = entity.AddComponent<SphereRendererComponent>();
+			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/grass/albedo.png");
+			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/grass/normal.png");
+			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/grass/metallic.png");
+			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/grass/roughness.png");
+			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/grass/ao.png");
+			sphere.Material->SetAlbedo(glm::vec4(1.0f));
+
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Grass";
+
+			m_EntityMap[uuid] = entity;
+		}
+		*/
+
+		/*
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(-2.0f, 2.2f, 0.0f);
+
+			auto &sphere = entity.AddComponent<SphereRendererComponent>();
+			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/gold/albedo.png");
+			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/gold/normal.png");
+			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/gold/metallic.png");
+			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/gold/roughness.png");
+			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/gold/ao.png");
+			sphere.Material->SetAlbedo(glm::vec4(1.0f));
+
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Gold";
+
+			m_EntityMap[uuid] = entity;
+		}
+		*/
+
+		/*
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(0.0f, 0.0f, 0.0f);
+
+			auto &sphere = entity.AddComponent<SphereRendererComponent>();
+			sphere.IsMaterial = true;
+			entity.AddComponent<MaterialComponent>();
+			auto &material = entity.GetComponent<MaterialComponent>();
+			material.AlbedoMap = "Assets/textures/pbr/plastic/albedo.png";
+			material.NormalMap = "Assets/textures/pbr/plastic/normal.png";
+			material.MetallicMap = "Assets/textures/pbr/plastic/metallic.png";
+			material.RoughnessMap = "Assets/textures/pbr/plastic/roughness.png";
+			material.AmbientOcclusionMap = "Assets/textures/pbr/plastic/ao.png";
+
+
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Plastic";
+
+			m_EntityMap[uuid] = entity;
+		}
+		*/
+
+		/*
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(1.0f, 0.5f, 0.0f);
+
+			auto &sphere = entity.AddComponent<SphereRendererComponent>();
+
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Plastic";
+
+			m_EntityMap[uuid] = entity;
+		}
+		*/
+
+		/*
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(-6.0f, -4.0f, 0.0f);
+			transform.Scale = glm::vec3(5.0f, 5.0f, 5.0f);
+
+			auto &sphere = entity.AddComponent<SphereRendererComponent>();
+
+
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "chassis";
+
+			m_EntityMap[uuid] = entity;
+		}
+		*/
+
+		// /*
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(-6.4f, -4.0f, 0.0f);
+			transform.Scale = glm::vec3(10.0f, 0.1f, 10.0f);
+
+			auto &sphere = entity.AddComponent<SphereRendererComponent>();
+
+			sphere.IsMaterial = true;
+			entity.AddComponent<MaterialComponent>();
+			auto &material = entity.GetComponent<MaterialComponent>();
+
+			material.AlbedoMap = "Assets/textures/pbr/rusted_iron/albedo.png";
+			material.NormalMap = "Assets/textures/pbr/rusted_iron/normal.png";
+			material.MetallicMap = "Assets/textures/pbr/rusted_iron/metallic.png";
+			material.RoughnessMap = "Assets/textures/pbr/rusted_iron/roughness.png";
+			material.AmbientOcclusionMap = "Assets/textures/pbr/rusted_iron/ao.png";
+
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Rusted_iron";
+
+			m_EntityMap[uuid] = entity;
+		}
+		// */
+
+		/*
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(4.0f, 2.2f, 0.0f);
+
+			auto &sphere = entity.AddComponent<SphereRendererComponent>();
+			sphere.Material->SetTexture(TextureType::Albedo, "Assets/textures/pbr/wall/albedo.png");
+			sphere.Material->SetTexture(TextureType::Normal, "Assets/textures/pbr/wall/normal.png");
+			sphere.Material->SetTexture(TextureType::Metallic, "Assets/textures/pbr/wall/metallic.png");
+			sphere.Material->SetTexture(TextureType::Roughness, "Assets/textures/pbr/wall/roughness.png");
+			sphere.Material->SetTexture(TextureType::AmbientOcclusion, "Assets/textures/pbr/wall/ao.png");
+			sphere.Material->SetAlbedo(glm::vec4(1.0f));
+
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Wall";
+
+			m_EntityMap[uuid] = entity;
+		}
+		*/
+
+		// /*
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(1.0f, -4.0f, 0.0f);
+			transform.Scale = glm::vec3(0.01f);
+			// transform.Rotation = glm::vec3(glm::radians(-90.0f), 0.0f, 0.0f);
 
 			auto &obj = entity.AddComponent<ModelRendererComponent>();
-			obj.ModelPath = "Assets/objs/animated-fire/source/Animated_fire.fbx";
+			obj.ModelPath = "Assets/objs/spartan-armour-mkv-halo-reach/Spartan_Sketchfab.fbx";
 			obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
 			{
 				auto &hierarchy = entity.AddComponent<HierarchyComponent>();
@@ -760,12 +672,37 @@ namespace Mc
 					mesh.IsMaterial = true;
 					subEntity.AddComponent<MaterialComponent>();
 					auto &material = subEntity.GetComponent<MaterialComponent>();
-					material.AlbedoMap = "Assets/objs/animated-fire/textures/Buches.jpeg";
-					// material.NormalMap = "Assets/objs/animated-fire/textures/Floortile1Normal.png";
-					// material.RoughnessMap = "Assets/objs/animated-fire/textures/Floortile1Roughness.png";
-					material.AmbientOcclusionMap = "Assets/objs/animated-fire/textures/CendresA.png";
-					material.EmissiveMap = "Assets/objs/animated-fire/textures/BuchesE.jpg";
+					if (obj->GetName() == "Helmet" || obj->GetName() == "polySurface436")
+					{
+						material.AlbedoMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Helmet_Mat_BaseColor.png";
+						material.NormalMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Helmet_Mat_Normal.png";
+						material.MetallicMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Helmet_Mat_Metallic.png";
+						material.RoughnessMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Helmet_Mat_Roughness.png";
+						material.AmbientOcclusionMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Helmet_Mat_AO.png";
+					}else if (obj->GetName() == "Armour")
+					{
+						material.AlbedoMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Arms_Mat_BaseColor.png";
+						material.NormalMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Arms_Mat_Normal.png";
+						material.MetallicMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Arms_Mat_Metallic.png";
+						material.RoughnessMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Arms_Mat_Roughness.png";
+						material.AmbientOcclusionMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Arms_Mat_AO.png";
+					}
+					else if (obj->GetName() == "Floor")
+					{
+						material.AlbedoMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/lambert1_Colour-Opacity.png";
+						material.NormalMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/lambert1_Nrm.png";
+						material.RoughnessMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/lambert1_Roughness.png";
+					}
+					else if (obj->GetName() == "Armour_LP")
+					{
+						material.AlbedoMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Legs_Mat_BaseColor.png";
+						material.NormalMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Legs_Mat_Normal.png";
+						material.MetallicMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Legs_Mat_Metallic.png";
+						material.RoughnessMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Legs_Mat_Roughness.png";
+						material.AmbientOcclusionMap = "Assets/objs/spartan-armour-mkv-halo-reach/textures/Spartan_Legs_Mat_AO.png";
+					}
 				}
+				obj.ReceivesAnimator = true;
 
 				auto &tag = entity.AddComponent<TagComponent>();
 				tag.Tag = "obj Model 3";
@@ -773,6 +710,51 @@ namespace Mc
 				m_EntityMap[uuid] = entity;
 			}
 		}
+		// */
+
+		// /*
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(-1.0f, -4.0f, 0.0f);
+			transform.Scale = glm::vec3(0.01f);
+			// transform.Rotation = glm::vec3(glm::radians(-90.0f), 0.0f, 0.0f);
+
+			auto &obj = entity.AddComponent<ModelRendererComponent>();
+			obj.ModelPath = "Assets/objs/vampire/dancing_vampire.dae";
+			obj.Model = ModelManager::Get().GetModel(obj.ModelPath);
+			{
+				auto &hierarchy = entity.AddComponent<HierarchyComponent>();
+				for (Ref<Mesh> &obj : obj.Model->GetMeshs())
+				{
+					Entity subEntity = entity.CreateChild(obj->GetName());
+					auto &mesh = subEntity.AddComponent<MeshRendererComponent>();
+					mesh.Id = obj->GetID();
+					hierarchy.Children.push_back(subEntity.GetUUID());
+
+					mesh.IsMaterial = true;
+					subEntity.AddComponent<MaterialComponent>();
+					auto &material = subEntity.GetComponent<MaterialComponent>();
+					if (obj->GetName() == "Vampire-lib")
+					{
+						material.AlbedoMap = "Assets/objs/vampire/textures/Vampire_diffuse.png";
+						material.NormalMap = "Assets/objs/vampire/textures/Vampire_normal.png";
+						material.MetallicMap = "Assets/objs/vampire/textures/Vampire_specular.png";
+						material.EmissiveMap = "Assets/objs/vampire/textures/Vampire_emission.png";
+					}
+				}
+				// TODO!!!
+				obj.ReceivesAnimator = true;
+
+				auto &tag = entity.AddComponent<TagComponent>();
+				tag.Tag = "obj Model 4";
+
+				m_EntityMap[uuid] = entity;
+			}
+		}
+		// */
 
 		{
 			auto uuid = UUID();

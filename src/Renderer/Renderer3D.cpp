@@ -97,6 +97,8 @@ namespace Mc
 		int ReceivesIBL;
 		int ReceivesLight;
 		int ReceivesShadow;
+
+		glm::mat4 FinalBoneMatrices[MAX_BONES];
 	};
 
 	static_assert(sizeof(MeshInstanceData) % 16 == 0, "MeshInstanceData size mismatch for std140 layout!");
@@ -1313,6 +1315,18 @@ namespace Mc
 			(int)src.ReceivesLight,
 			(int)src.ReceivesShadow,
 		};
+
+		{
+			glm::mat4 finalBoneMatrices[MAX_BONES];
+			if (src.ReceivesAnimator)
+				for (int i = 0; i < MAX_BONES; i++)
+					finalBoneMatrices[i] = src.Model->GetAnimator()->GetFinalBoneMatrices()[i];
+			else
+				for (int i = 0; i < MAX_BONES; i++)
+					finalBoneMatrices[i] = glm::mat4(1.0f);
+
+			memcpy(instanceData.FinalBoneMatrices, finalBoneMatrices, MAX_BONES * sizeof(glm::mat4));
+		}
 
 		batch.Instances.push_back(instanceData);
 		batch.InstanceCount++;

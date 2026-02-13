@@ -190,6 +190,12 @@ namespace Mc
         UploadUniformMat4(name, value);
     }
 
+    void Shader::SetMat4Array(const std::string &name, const glm::mat4 *values, uint32_t count)
+    {
+        GLint location = glGetUniformLocation(m_RendererID, name.c_str());
+        glUniformMatrix4fv(location, count, GL_FALSE, glm::value_ptr(values[0]));
+    }
+
     void Shader::UploadUniformInt(const std::string &name, int values)
     {
         GLint location = glGetUniformLocation(m_RendererID, name.c_str());

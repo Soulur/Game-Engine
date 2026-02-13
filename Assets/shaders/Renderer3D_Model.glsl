@@ -7,6 +7,13 @@ layout (location = 1) in vec3 a_Normal;
 layout (location = 2) in vec2 a_TexCoords;
 layout (location = 3) in vec3 a_Tangent;
 layout (location = 4) in vec3 a_Bitangent;
+layout (location = 5) in ivec4 a_BoneIDs;
+layout (location = 6) in vec4 a_Weights;
+
+// ================================================================================================
+
+#define MAX_BONES 100
+#define MAX_BONE_INFLUENCE 4
 
 struct InstanceData {
     mat4 Transform;
@@ -35,6 +42,8 @@ struct InstanceData {
 	int ReceivesIBL;
 	int ReceivesLight;
 	int ReceivesShadow;
+
+    mat4 FinalBoneMatrices[MAX_BONES];
 };
 
 // SSBO Declaration
@@ -78,6 +87,7 @@ out VS_OUT {
 
 
 uniform mat4 u_ViewProjection;
+//  uniform int  u_IsAnimated; // 增加一个开关：0 为静态模型，1 为带动画模型
 
 void main()
 {
@@ -85,7 +95,24 @@ void main()
 
     mat4 transform  = instance.Transform;
 
-    vec4 worldPos4 = transform * vec4(a_Position, 1.0);
+    mat4 boneTransform = mat4(0.0f);
+    float totalWeight = 0.0;
+    for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
+    {
+        if (a_BoneIDs[i] == -1) continue;
+        if (a_BoneIDs[i] >= MAX_BONES) break;
+
+        boneTransform += instance.FinalBoneMatrices[a_BoneIDs[i]] * a_Weights[i];
+        totalWeight += a_Weights[i];
+    }
+    // 如果没有权重（静态物体），设为单位矩阵
+    if (totalWeight < 0.01) boneTransform = mat4(1.0);
+
+    vec4 localAnimatedPos = boneTransform * vec4(a_Position, 1.0);
+    // ================================================================================================
+
+
+    vec4 worldPos4 = transform * localAnimatedPos;
     vs_out.WorldPos = worldPos4.xyz;     // 世界空间位置
     gl_Position = u_ViewProjection * worldPos4;
 

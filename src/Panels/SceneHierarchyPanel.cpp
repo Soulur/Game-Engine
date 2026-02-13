@@ -87,7 +87,7 @@ namespace Mc {
 	// 支持文件类型
 	extern const std::vector<std::string> TextureSupportType{".png", ".jpg"};
 
-	extern const std::vector<std::string> ModelSupportType{".obj"};
+	extern const std::vector<std::string> ModelSupportType{".obj", ".fbx"};
 
 	extern const std::vector<std::string> HdrSupportType{".hdr"};
 
@@ -632,6 +632,35 @@ namespace Mc {
 			ImGui::Checkbox("ProjectionShadow", &component.ProjectionShadow);
 
 			ImGui::Checkbox("GammaCorrection", &component.GammaCorrection);
+
+			if (component.Model->GetIsAnimation())
+			{
+				ImGui::Checkbox("ReceivesAnimator", &component.ReceivesAnimator);
+
+				auto animator = component.Model->GetAnimator();
+				float currentPos = component.Model->GetAnimator()->GetCurrentTime();
+				float totalPos = component.Model->GetAnimator()->GetDuration();
+
+				float progress = (totalPos > 0.0f) ? (currentPos / totalPos) : 0.0f;
+
+				if (ImGui::SliderFloat("Animation Progress", &progress, 0.0f, 1.0f))
+				{
+					animator->SetPaused(true);
+					animator->SetProgress(progress);
+				}
+
+				// 播放/暂停控制按钮
+				if (ImGui::Button(animator->GetPaused() ? "Play" : "Pause"))
+				{
+					animator->SetPaused(!animator->GetPaused());
+				}
+
+				// 显示进度文本
+				ImGui::Text("Time: %.2f / %.2f", currentPos, totalPos);
+				ImGui::ProgressBar(progress);
+			}
+			else
+				ImGui::Text("static objects");
 		});
 
 		DrawComponent<MeshRendererComponent>("Mesh Renderer", entity, [this](auto &component)

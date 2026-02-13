@@ -7,7 +7,6 @@
 
 // #define MAX_BONE_INFLUENCE 4
 
-// TODO : 目前只支持 OBJ
 namespace Mc
 {
     struct ModelVertex
@@ -17,9 +16,10 @@ namespace Mc
         glm::vec2 TexCoords;
         glm::vec3 Tangent;
         glm::vec3 Bitangent;
-        // 骨骼
-        // int BoneIDs[MAX_BONE_INFLUENCE];
-        // float Weights[MAX_BONE_INFLUENCE];
+
+        // 使用 ivec4 和 vec4，便于 GPU 处理
+        glm::ivec4 BoneIDs = glm::ivec4(-1);
+        glm::vec4 Weights = glm::vec4(0.0f);
     };
 
     class Mesh

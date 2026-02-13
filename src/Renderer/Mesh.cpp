@@ -18,9 +18,9 @@ namespace Mc
             {ShaderDataType::Float3, "a_Normal"},
             {ShaderDataType::Float2, "a_TexCoords"},
             {ShaderDataType::Float3, "a_Tangent"},
-            {ShaderDataType::Float3, "a_Bitangent"}
-            // {ShaderDataType::Int4, "a_BoneIDs"}, // 如果有骨骼动画
-            // {ShaderDataType::Float4, "a_Weights"}
+            {ShaderDataType::Float3, "a_Bitangent"},
+            {ShaderDataType::Int4,   "a_BoneIDs"},
+            {ShaderDataType::Float4, "a_Weights"}
         });
         m_VertexArray->AddVertexBuffer(m_VertexBuffer);
 

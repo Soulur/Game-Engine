@@ -161,6 +161,8 @@ add_executable(${PROJECT_NAME}
     src/Utils/PlatformUtils.h
 
     # Math
+    src/Math/AssimpToGLMConvert.cpp
+    src/Math/AssimpToGLMConvert.h
     src/Math/Math.cpp
     src/Math/Math.h
 
@@ -225,6 +227,9 @@ add_executable(${PROJECT_NAME}
 
     src/Renderer/Shadow.cpp
     src/Renderer/Shadow.h
+
+    src/Renderer/Animation.cpp
+    src/Renderer/Animation.h
 
     # Manager
     # ------------------------------------------

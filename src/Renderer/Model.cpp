@@ -3,12 +3,37 @@
 #include "src/Renderer/Manager/TextureManager.h"
 #include "src/Renderer/Manager/MaterialManager.h"
 #include "src/Renderer/Manager/MeshManager.h"
+#include "src/Math/AssimpToGLMConvert.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace Mc
 {
+    // --- 数据结构定义 ---
+
+    // 形变目标数据结构：存储相对于基础网格的偏移量
+    struct MorphTargetData
+    {
+        std::vector<aiVector3D> positionOffsets;
+        std::vector<aiVector3D> normalOffsets;
+        // ... 其他可选偏移量 (切线等)
+    };
+
+    // 动画关键帧结构：存储形变目标索引和时间
+    struct MorphKey
+    {
+        double time;              // 关键帧时间
+        unsigned int targetIndex; // 目标 aiAnimMesh 的索引
+    };
+
+    // 形变动画通道结构
+    struct MorphChannel
+    {
+        std::string meshName;
+        std::vector<MorphKey> keys;
+    };
+
     Model::Model(std::string const &path)
         : m_Path(path)
     {
@@ -33,8 +58,19 @@ namespace Mc
         // m_Directory = path.string().substr(0, path.string().find_last_of('/'));
         m_Directory = path.parent_path().string();
 
+        m_GlobalInverseTransform = glm::inverse(AssimpToGLM::Convert(scene->mRootNode->mTransformation));
+
         // Load
         ProcessNode(scene->mRootNode, scene);
+
+        // Load Animation
+        if (scene->mNumAnimations > 0 && scene->mAnimations != nullptr)
+        {
+            m_IsAnimation = true;
+            m_DanceAnimation = Animation::Create(scene, m_GlobalInverseTransform, m_BoneInfoMap, m_BoneCounter);
+            m_Animator = Animator::Create(m_DanceAnimation.get());
+        }
+        
 
         m_IsLoaded = true;
         LOG_CORE_INFO("Loaded true {0}", path);
@@ -90,6 +126,44 @@ namespace Mc
             vertices.push_back(node);
         }
 
+        // --- 骨骼权重提取 (新增) ---
+        if (mesh->HasBones())
+        {
+            for (unsigned int i = 0; i < mesh->mNumBones; ++i)
+            {
+                aiBone *bone = mesh->mBones[i];
+                std::string boneName = bone->mName.C_Str();
+                int boneID = -1;
+
+                // 1. 记录骨骼信息 (如果骨骼是第一次出现)
+                if (m_BoneInfoMap.find(boneName) == m_BoneInfoMap.end())
+                {
+                    BoneInfo newBone;
+                    newBone.id = m_BoneCounter;
+                    newBone.offsetMatrix = AssimpToGLM::Convert(bone->mOffsetMatrix);
+                    m_BoneInfoMap[boneName] = newBone;
+                    
+                    boneID = m_BoneCounter;
+                    m_BoneCounter++;
+                }
+                else
+                {
+                    boneID = m_BoneInfoMap[boneName].id;
+                }
+
+                // 2. 将权重分配给顶点
+                for (unsigned int j = 0; j < bone->mNumWeights; ++j)
+                {
+                    aiVertexWeight weight = bone->mWeights[j];
+                    unsigned int vertexID = weight.mVertexId;
+                    float boneWeight = weight.mWeight;
+
+                    // 使用辅助函数来处理权重分配和 MAX_BONE_INFLUENCE 限制
+                    AddBoneDataToVertex(vertices[vertexID], boneID, boneWeight);
+                }
+            }
+        }
+
         // Face
         for (uint32_t i = 0; i < mesh->mNumFaces; ++i)
         {
@@ -99,6 +173,19 @@ namespace Mc
         }
 
         return Mesh::Create(name, vertices, indices);
+    }
+
+    void Model::AddBoneDataToVertex(ModelVertex &vertex, int boneID, float weight)
+    {
+        for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
+        {
+            if (vertex.BoneIDs[i] == -1) // 找到第一个空的槽位
+            {
+                vertex.BoneIDs[i] = boneID;
+                vertex.Weights[i] = weight;
+                return;
+            }
+        }
     }
 
     Ref<Model> Model::Create(std::string const &path)

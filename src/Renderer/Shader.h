@@ -39,6 +39,7 @@ namespace Mc
         void SetFloat3(const std::string &name, const glm::vec3 &value);
         void SetFloat4(const std::string &name, const glm::vec4 &value);
         void SetMat4(const std::string &name, const glm::mat4 &value);
+        void SetMat4Array(const std::string &name, const glm::mat4 *values, uint32_t count);
 
     public:
         void UploadUniformInt(const std::string &name, int values);
