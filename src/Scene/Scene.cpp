@@ -134,8 +134,21 @@ namespace Mc
 	{
 		m_IsRunning = false;
 
+		{
+			auto view = m_Registry.view<TransformComponent, ModelRendererComponent, HierarchyComponent>();
 
-		// ScriptEngine::OnRuntimeStop();
+			for (auto entityID : view)
+			{
+				Entity entity{entityID, this};
+
+				if (entity.GetComponent<HierarchyComponent>().Parent == 0)
+				{
+					auto model = entity.GetComponent<ModelRendererComponent>();
+					if (model.ReceivesAnimator)
+						model.Model->GetAnimator()->SetProgress(0.0f);
+				}
+			}
+		}
 	}
 
 	void Scene::OnSimulationStart()
@@ -144,6 +157,21 @@ namespace Mc
 
 	void Scene::OnSimulationStop()
 	{
+		{
+			auto view = m_Registry.view<TransformComponent, ModelRendererComponent, HierarchyComponent>();
+
+			for (auto entityID : view)
+			{
+				Entity entity{entityID, this};
+
+				if (entity.GetComponent<HierarchyComponent>().Parent == 0)
+				{
+					auto model = entity.GetComponent<ModelRendererComponent>();
+					if (model.ReceivesAnimator)
+						model.Model->GetAnimator()->SetProgress(0.0f);
+				}
+			}
+		}
 	}
 
 	void Scene::OnUpdateRuntime(Timestep ts)
@@ -284,7 +312,8 @@ namespace Mc
 							MaterialComponent *material = m_Registry.try_get<MaterialComponent>(childEntity);
 							Renderer3D::DrawModel(worldTransform, model, mesh, material, (int)entityID);
 						}
-						if (model.ReceivesAnimator) model.Model->GetAnimator()->UpdateAnimation(ts);
+						if (model.ReceivesAnimator && !m_IsPaused)
+							model.Model->GetAnimator()->UpdateAnimation(ts);
 					}
 				}
 			}
@@ -294,27 +323,22 @@ namespace Mc
 
 	void Scene::OnUpdateSimulation(Timestep ts, EditorCamera& camera)
 	{
-		// Physics
-		// {
-		// 	const int32_t velocityIterations = 6;
-		// 	const int32_t positionIterations = 2;
-		// 	m_PhysicsWorld->Step(ts, velocityIterations, positionIterations);
+		if (!m_IsPaused)
+		{
+			auto view = m_Registry.view<TransformComponent, ModelRendererComponent, HierarchyComponent>();
 
-		// 	// Retrieve transform from Box2D
-		// 	auto view = m_Registry.view<Rigidbody2DComponent>();
-		// 	for (auto e : view)
-		// 	{
-		// 		Entity entity = { e,this };
-		// 		auto& transform = entity.GetComponent<TransformComponent>();
-		// 		auto& rb2d = entity.GetComponent<Rigidbody2DComponent>();
+			for (auto entityID : view)
+			{
+				Entity entity{entityID, this};
 
-		// 		b2Body* body = (b2Body*)rb2d.RuntimeBody;
-		// 		const auto& position = body->GetPosition();
-		// 		transform.Translation.x = position.x;
-		// 		transform.Translation.y = position.y;
-		// 		transform.Rotation.z = body->GetAngle();
-		// 	}
-		// }
+				if (entity.GetComponent<HierarchyComponent>().Parent == 0)
+				{
+					auto model = entity.GetComponent<ModelRendererComponent>();
+					if (model.ReceivesAnimator)
+						model.Model->GetAnimator()->UpdateAnimation(ts);
+				}
+			}
+		}
 
 		RenderScene(camera);
 	}

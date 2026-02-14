@@ -337,10 +337,10 @@ namespace Mc
             }
         }
 
+        UI_Toolbar();
+
         ImGui::End();
         ImGui::PopStyleVar();
-
-        UI_Toolbar();
 
         ImGui::End();
     }
@@ -568,11 +568,28 @@ namespace Mc
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(buttonHovered.x, buttonHovered.y, buttonHovered.z, 0.5f));
         const auto &buttonActive = colors[ImGuiCol_ButtonActive];
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(buttonActive.x, buttonActive.y, buttonActive.z, 0.5f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.0f);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.1f, 0.1f, 0.1f, 0.6f));
 
-        // float toolbarHeight = 40.0f;
-        // ImGui::SetNextWindowSize(ImVec2(ImGui::GetWindowViewport()->Size.x, toolbarHeight));
+        float toolbarHeight = 30.0f;
+        float toolbarWidth = 120.0f;
 
-        ImGui::Begin("##toolbar", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar);
+        ImVec2 windowPos = ImGui::GetWindowPos();
+        ImVec2 windowSize = ImGui::GetWindowSize();
+
+        float targetPosX = windowPos.x + (windowSize.x - toolbarWidth) * 0.5f;
+        float targetPosY = windowPos.y + toolbarHeight;
+
+        ImGui::SetNextWindowPos(ImVec2(targetPosX, targetPosY));
+
+        ImGui::SetNextWindowSize(ImVec2(toolbarWidth, toolbarHeight));
+
+        ImGuiWindowFlags toolbarFlags = ImGuiWindowFlags_NoDecoration |
+                                        ImGuiWindowFlags_NoMove |
+                                        ImGuiWindowFlags_NoSavedSettings |
+                                        ImGuiWindowFlags_NoScrollbar;
+
+        ImGui::Begin("##toolbar", nullptr, toolbarFlags);
 
         bool toolbarEnabled = (bool)m_ActiveScene;
 
@@ -581,12 +598,12 @@ namespace Mc
         if (!toolbarEnabled)
             tintColor.w = 0.5f;
 
-        float size = ImGui::GetWindowHeight() / 2;
-        ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - (size * 0.5f));
+        float size = toolbarHeight - 10.0f;
+        ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - size * 2.5f);
 
-        bool hasPlayButton = m_SceneState == SceneState::Edit || m_SceneState == SceneState::Play;
-        bool hasSimulateButton = m_SceneState == SceneState::Edit || m_SceneState == SceneState::Simulate;
-        bool hasPauseButton = m_SceneState != SceneState::Edit;
+        bool hasPlayButton = true;
+        bool hasSimulateButton = true;
+        bool hasPauseButton = true;
 
         if (hasPlayButton)
         {
@@ -604,9 +621,8 @@ namespace Mc
         }
 
         if (hasSimulateButton)
-        {
-            if (hasPlayButton)
-                ImGui::SameLine();
+        {            
+            ImGui::SameLine();
 
             Ref<Texture2D> icon = (m_SceneState == SceneState::Edit || m_SceneState == SceneState::Play) ? m_IconSimulate : m_IconStop;
             const char *buttonID = (m_SceneState == SceneState::Simulate) ? "##EditButton" : "##SimulateButton";
@@ -621,8 +637,25 @@ namespace Mc
             }
         }
 
-        ImGui::PopStyleVar(2);
-        ImGui::PopStyleColor(3);
+        if (hasPauseButton)
+        {
+            ImGui::SameLine();
+
+            Ref<Texture2D> icon = m_ActiveScene->IsPaused() ? m_IconStep : m_IconPause;
+            const char *buttonID = m_ActiveScene->IsPaused() ? "##StepButton" : "##PauseButton";
+            ImTextureID textureID = (ImTextureID)icon->GetRendererID();
+
+            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(size, size), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
+            {
+                if (!m_ActiveScene->IsPaused())
+                    OnScenePause();
+                else
+                    m_ActiveScene->SetPaused(false);
+            }
+        }
+
+        ImGui::PopStyleVar(3);
+        ImGui::PopStyleColor(4);
         ImGui::End();
     }
 

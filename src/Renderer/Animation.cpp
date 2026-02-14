@@ -182,6 +182,7 @@ namespace Mc
 
         for (int i = 0; i < MAX_BONES; i++)
             m_FinalBoneMatrices.push_back(glm::mat4(1.0f));
+        CalculateBoneTransform(&m_CurrentAnimation->GetRootNode(), glm::mat4(1.0f));
     }
 
     void Animator::UpdateAnimation(float dt)
