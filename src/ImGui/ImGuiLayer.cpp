@@ -33,7 +33,7 @@ namespace Mc {
 		//io.ConfigFlags |= ImGuiConfigFlags_ViewportsNoMerge;
 
 		// Fonts
-		float fontSize = 18.0f;
+		float fontSize = 13.0f;
 		io.Fonts->AddFontFromFileTTF("Assets/fonts/CascadiaMono/CascadiaMono-Bold.ttf", fontSize);
 		io.Fonts->AddFontFromFileTTF("Assets/fonts/CascadiaMono/CascadiaMono-ExtraLight.ttf", fontSize);
 		io.Fonts->AddFontFromFileTTF("Assets/fonts/CascadiaMono/CascadiaMono-Light.ttf", fontSize);
@@ -53,6 +53,11 @@ namespace Mc {
 			style.WindowRounding = 0.0f;
 			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 		}
+
+		style.WindowPadding = ImVec2(0.0f, 0.0f); // 全局去掉所有窗口内边距
+		style.WindowBorderSize = 0.0f;			  // 全局去掉所有窗口边框线
+		style.FrameBorderSize = 0.0f;			  // 全局去掉所有组件（按钮、输入框等）边框线
+		style.DisplaySafeAreaPadding = ImVec2(0.0f, 0.0f); // 彻底禁止 ImGui 预留安全边距
 
 		SetDarkThemeColors();
 

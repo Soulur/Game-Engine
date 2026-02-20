@@ -39,7 +39,9 @@ namespace Mc
 		}
 
 		{
+			glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 			m_Window = glfwCreateWindow((int)props.Width, (int)props.Height, m_Data.Title.c_str(), nullptr, nullptr);
+			glfwSetWindowPos(m_Window, 100, 100);
 			++s_GLFWWindowCount;
 		}
 

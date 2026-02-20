@@ -15,6 +15,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <ImGuizmo.h>
 
 
@@ -32,6 +33,11 @@ namespace Mc
 
     void EditorLayer::OnAttach()
     {
+        m_IconMinimize = Texture2D::Create("Resources/Icons/minus.png");
+        m_IconMaximize = Texture2D::Create("Resources/Icons/checkbox-blank-outline.png");
+        m_IconRestore = Texture2D::Create("Resources/Icons/checkbox-multiple-blank-outline.png");
+        m_IconClose = Texture2D::Create("Resources/Icons/close.png");
+
         m_IconPlay = Texture2D::Create("Resources/Icons/PlayButton.png");
         m_IconPause = Texture2D::Create("Resources/Icons/PauseButton.png");
         m_IconSimulate = Texture2D::Create("Resources/Icons/SimulateButton.png");
@@ -127,6 +133,8 @@ namespace Mc
 
     void EditorLayer::OnImGuiRender()
     {
+        UI_MainMenuBar();
+
         // Note: Switch this to true to enable dockspace
         static bool dockspaceOpen = true;
         static bool opt_fullscreen_persistant = true;
@@ -135,12 +143,12 @@ namespace Mc
 
         // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
         // because it would be confusing to have two docking targets within each others.
-        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
         if (opt_fullscreen)
         {
             ImGuiViewport *viewport = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(viewport->Pos);
-            ImGui::SetNextWindowSize(viewport->Size);
+            ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + 45.0f));
+            ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, viewport->Size.y - 45.0f));
             ImGui::SetNextWindowViewport(viewport->ID);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
@@ -174,32 +182,6 @@ namespace Mc
 
         // -------------------------------------------------------------------------------------------------------------------------
 
-        if (ImGui::BeginMenuBar())
-        {
-            if (ImGui::BeginMenu("File"))
-            {
-                // Disabling fullscreen would allow the window to be moved to the front of other windows,
-                // which we can't undo at the moment without finer window depth/z control.
-                // ImGui::MenuItem("Fullscreen", NULL, &opt_fullscreen_persistant);1
-                if (ImGui::MenuItem("New", "Ctrl+N"))
-                    NewScene();
-
-                if (ImGui::MenuItem("Open...", "Ctrl+O"))
-                    OpenScene();
-
-                if (ImGui::MenuItem("Save", "Ctrl+S"))
-                    SaveScene();
-
-                if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))
-                    SaveSceneAs();
-
-                if (ImGui::MenuItem("Exit"))
-                    Application::Get().Close();
-                ImGui::EndMenu();
-            }
-
-            ImGui::EndMenuBar();
-        }
 
         m_SceneHierarchyPanel.OnImGuiRender();
         m_ProjectBrowserPanel.OnImGuiRender();
@@ -233,9 +215,12 @@ namespace Mc
         // ImGui::End();
         // ---------------------------------------------------------------------------------------------------------
 
+        /*
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
         ImGui::Begin("Stats");
+        ImGui::PopStyleColor();
         std::string name = "None";
-        if (m_HoveredEntity) 
+        if (m_HoveredEntity)
         {
             name = m_HoveredEntity.GetComponent<TagComponent>().Tag;
         }
@@ -248,6 +233,7 @@ namespace Mc
         ImGui::Text("Model: %d", stats.ModelCount / 2);
 
         ImGui::End();
+        */
 
         // ---------------------------------------------------------------------------------------------------------
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
@@ -558,6 +544,155 @@ namespace Mc
         m_ActiveScene->SetPaused(true);
     }
 
+    void EditorLayer::UI_MainMenuBar()
+    {
+        ImGuiViewport *viewport = ImGui::GetMainViewport();
+        float topBarHeight = 45.0f;
+
+        ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+        if (ImGui::BeginViewportSideBar("##MainMenuBar", viewport, ImGuiDir_Up, topBarHeight, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking))
+        {
+            ImU32 colLeft = IM_COL32(28, 92, 47, 255);
+            ImU32 colRight = IM_COL32(28, 28, 28, 255);
+            {
+                ImDrawList *drawList = ImGui::GetWindowDrawList();
+                ImVec2 minP = ImGui::GetWindowPos();
+                ImVec2 maxP = ImVec2(minP.x + viewport->Size.x / 4.0f, minP.y + topBarHeight);
+                drawList->AddRectFilledMultiColor(minP, maxP, colLeft, colRight, colRight, colLeft);
+            }
+
+            {
+                ImGui::SameLine(0, 20.0f);
+
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 13.0f));
+                ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0.5f, 0.5f)); // 文字居中
+
+                const char *MenuFile = "File";
+                float textWidth = ImGui::CalcTextSize(MenuFile).x;
+                float itemWidth = textWidth + 20.0f;
+                float itemHeight = topBarHeight * 0.3f;
+
+                ImVec2 screenPos = ImGui::GetCursorScreenPos();
+
+                // ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.12f, 0.45f, 1.0f, 1.0f));
+                // ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.12f, 0.45f, 1.0f, 1.0f));
+
+                ImGui::Selectable(MenuFile, false, ImGuiSelectableFlags_None, ImVec2(itemWidth, itemHeight));
+
+                if (ImGui::IsItemHovered())
+                    ImGui::OpenPopup(MenuFile);
+
+                // ImGui::PopStyleColor(2);
+                ImGui::PopStyleVar(2);
+
+                ImGui::SetNextWindowPos(ImVec2(screenPos.x, screenPos.y + itemHeight + 3.0f));
+
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
+                ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 4.0f);
+
+                if (ImGui::BeginPopup(MenuFile))
+                {
+                    if (ImGui::MenuItem("New", "Ctrl+N"))
+                        NewScene();
+
+                    if (ImGui::MenuItem("Open...", "Ctrl+O"))
+                        OpenScene();
+
+                    if (ImGui::MenuItem("Save", "Ctrl+S"))
+                        SaveScene();
+
+                    if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))
+                        SaveSceneAs();
+
+                    if (ImGui::MenuItem("Exit")) Application::Get().Close();
+                    ImGui::EndPopup();
+                }
+                ImGui::PopStyleVar(3);
+                ImGui::SameLine(0, 0);
+            }
+
+            auto *window = static_cast<GLFWwindow *>(Application::Get().GetWindow().GetNativeWindow());
+
+            {
+                float itemWidth = 20.0f;
+                float itemHeight = topBarHeight * 0.4f;
+
+                float offset = 5.0f;
+                float buttonsAreaWidth = (itemWidth + offset * 2) * 3;
+
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(offset, 0.0f));
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.2f)); // 点击时微亮
+
+                ImGui::SameLine(ImGui::GetWindowWidth() - buttonsAreaWidth);
+
+                ImTextureID minIconID = (ImTextureID)m_IconMinimize->GetRendererID();
+                if (ImGui::ImageButton("##Minimize", minIconID, ImVec2(itemWidth, itemHeight),
+                                       ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1)))
+                {
+                    glfwIconifyWindow(window);
+                }
+
+                ImGui::SameLine(0, 0);
+
+                ImTextureID maxIcon = glfwGetWindowAttrib(window, GLFW_MAXIMIZED) ? (ImTextureID)m_IconRestore->GetRendererID() : (ImTextureID)m_IconMaximize->GetRendererID();
+                if (ImGui::ImageButton("##Maximize", maxIcon, ImVec2(itemWidth, itemHeight), ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0)))
+                {
+                    if (glfwGetWindowAttrib(window, GLFW_MAXIMIZED))
+                        glfwRestoreWindow(window);
+                    else
+                        glfwMaximizeWindow(window);
+                }
+
+                ImGui::SameLine(0, 0);
+
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                if (ImGui::ImageButton("##Close", (ImTextureID)m_IconClose->GetRendererID(), ImVec2(itemWidth, itemHeight), ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0)))
+                {
+                    Application::Get().Close();
+                }
+                ImGui::PopStyleVar();
+                ImGui::PopStyleColor(3);
+            }
+
+            {
+                if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered())
+                {
+                    if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                    {
+                        if (glfwGetWindowAttrib(window, GLFW_MAXIMIZED))
+                            glfwRestoreWindow(window);
+                        else
+                            glfwMaximizeWindow(window);
+                    }
+                }
+
+                if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
+                {
+                    if (!glfwGetWindowAttrib(window, GLFW_MAXIMIZED))
+                    {
+                        ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
+
+                        if (delta.x != 0.0f || delta.y != 0.0f)
+                        {
+                            int winX, winY;
+                            glfwGetWindowPos(window, &winX, &winY);
+                            glfwSetWindowPos(window, winX + (int)delta.x, winY + (int)delta.y);
+
+                            ImGui::ResetMouseDragDelta(ImGuiMouseButton_Left);
+                        }
+                    }
+                }
+            }
+
+            ImGui::End();
+        }
+
+        ImGui::PopStyleColor();
+    }
+
     void EditorLayer::UI_Toolbar()
     {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 2));
@@ -578,7 +713,7 @@ namespace Mc
         ImVec2 windowSize = ImGui::GetWindowSize();
 
         float targetPosX = windowPos.x + (windowSize.x - toolbarWidth) * 0.5f;
-        float targetPosY = windowPos.y + toolbarHeight;
+        float targetPosY = windowPos.y + 5.0f;
 
         ImGui::SetNextWindowPos(ImVec2(targetPosX, targetPosY));
 

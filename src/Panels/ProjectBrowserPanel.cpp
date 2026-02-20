@@ -14,17 +14,6 @@ namespace Mc {
 	{
 	}
 
-
-	// 文件类型图标
-	enum class FileIconType
-	{
-		Folder,	// 文件夹
-		Code,
-		Image,
-		Document,
-		Other
-	};
-
 	// 获取文件图标类型
 	FileIconType GetFileIconType(const std::filesystem::path &path)
 	{
@@ -45,7 +34,7 @@ namespace Mc {
 	}
 
 	// 绘制图标 (实际项目中应该使用纹理图标)
-	void DrawIcon(FileIconType type)
+    void ProjectBrowserPanel::DrawIcon(FileIconType type)
 	{
 		const char *icon = "?";
 		ImVec4 color = ImGui::GetStyle().Colors[ImGuiCol_Text];
@@ -79,8 +68,16 @@ namespace Mc {
 		ImGui::SameLine();
 	}
 
-	// 递归显示文件树
-	void ProjectBrowserPanel::DisplayFileTree(const std::filesystem::path &path)
+	void ProjectBrowserPanel::RenderTopBar()
+    {
+	}
+
+    void ProjectBrowserPanel::RenderContentGrid()
+    {
+    }
+
+    // 递归显示文件树
+    void ProjectBrowserPanel::DisplayFileTree(const std::filesystem::path &path)
 	{
 		try
 		{
@@ -191,42 +188,48 @@ namespace Mc {
 	}
 
 	void ProjectBrowserPanel::OnImGuiRender()
-	{
-		ImGui::Begin("Project Browser", nullptr, ImGuiWindowFlags_MenuBar);
+	{		
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
-		// ------------------------
-		// 菜单栏：导航按钮
-		// ------------------------
-		static std::string currentFilter;
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+		ImGui::Begin("Content Browser");
+		ImGui::PopStyleColor();
 
-		if (ImGui::BeginMenuBar())
+		// 1. 创建无边框表格作为主容器
+		static ImGuiTableFlags tableFlags = ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchSame;
+		if (ImGui::BeginTable("BrowserMainLayout", 2, tableFlags))
 		{
-			if (ImGui::BeginMenu("View"))
+			ImGui::TableSetupColumn("TreeColumn", ImGuiTableColumnFlags_WidthFixed, 220.0f);
+			ImGui::TableSetupColumn("GridColumn", ImGuiTableColumnFlags_WidthStretch);
+
+			ImGui::TableNextRow();
+
+			ImGui::TableSetColumnIndex(0);
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 4));
+
+			if (ImGui::BeginChild("##TreeRegion", ImVec2(0, 0), false))
 			{
-				ImGui::MenuItem("Show Icons", nullptr, &g_ShowFileIcons);
-				ImGui::EndMenu();
+				ImGui::Spacing();
+				DisplayFileTree(g_AssetPath);
 			}
+			ImGui::EndChild();
+			ImGui::PopStyleVar();
 
-			static char searchBuffer[256] = "";	
+			ImGui::TableSetColumnIndex(1);
 
-			// 搜索框
-			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.5f);
-			if (ImGui::InputTextWithHint("##Search", "Search...", searchBuffer, IM_ARRAYSIZE(searchBuffer)))
+			if (ImGui::BeginChild("##GridRegion", ImVec2(0, 0), false))
 			{
-				currentFilter = searchBuffer;
+				RenderTopBar();		// 渲染导航栏
+				ImGui::Separator(); // 淡淡的分隔线
+				ImGui::Spacing();
+				RenderContentGrid(); // 渲染网格图标
 			}
-
-			ImGui::EndMenuBar();
+			ImGui::EndChild();
+			ImGui::EndTable();
 		}
 
-		// 文件树
-		if (ImGui::BeginChild("##FileTree", ImVec2(0, 0), true))
-			DisplayFileTree(g_AssetPath);
-		
-		ImGui::EndChild();
-
 		ImGui::End();
-
+		ImGui::PopStyleVar();
 	}
 
 }

@@ -52,6 +52,7 @@ namespace Mc
         void OnDuplicateEntity();
 
         // UI Panels
+        void UI_MainMenuBar();
         void UI_Toolbar();
 
     private:
@@ -94,6 +95,7 @@ namespace Mc
         ProjectBrowserPanel m_ProjectBrowserPanel;
 
         // Editor resources
+        Ref<Texture2D> m_IconMinimize, m_IconMaximize, m_IconRestore, m_IconClose;
         Ref<Texture2D> m_IconPlay, m_IconPause, m_IconStep, m_IconSimulate, m_IconStop;
     };
 }

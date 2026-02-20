@@ -108,42 +108,76 @@ namespace Mc {
 
 		if (m_Context)
 		{
-			auto view = m_Context->m_Registry.view<entt::entity>();
-			for (auto entityID : view)
+			auto hdrView = m_Context->m_Registry.view<HdrSkyboxComponent>();
+			if (!hdrView.empty())
 			{
-				Entity entity{entityID, m_Context.get()};
-
-				bool isRoot = true;
-				if (entity.HasComponent<HierarchyComponent>())
+				if (ImGui::TreeNodeEx("Environment", ImGuiTreeNodeFlags_DefaultOpen))
 				{
-					if (entity.GetComponent<HierarchyComponent>().Parent != 0)
-					{
-						isRoot = false;
-					}
+					for (auto entityID : hdrView)
+						DrawEntityNode({entityID, m_Context.get()});
+					ImGui::TreePop();
 				}
+			}
 
-				if (isRoot)
+			if (ImGui::TreeNodeEx("Lights", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				auto view = m_Context->m_Registry.view<DirectionalLightComponent>();
+				for (auto entityID : view)
+					DrawEntityNode({entityID, m_Context.get()});
+
+				auto pointView = m_Context->m_Registry.view<PointLightComponent>();
+				for (auto entityID : pointView)
+					DrawEntityNode({entityID, m_Context.get()});
+
+				ImGui::TreePop();
+			}
+
+			if (ImGui::TreeNodeEx("Spheres", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				auto view = m_Context->m_Registry.view<SphereRendererComponent>();
+				for (auto entityID : view)
 				{
+					Entity entity{entityID, m_Context.get()};
 					DrawEntityNode(entity);
 				}
-				// DrawEntityNode(entity);
+				ImGui::TreePop();
+			}
+
+			if (ImGui::TreeNodeEx("Models", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				auto view = m_Context->m_Registry.view<ModelRendererComponent>();
+				for (auto entityID : view)
+				{
+					Entity entity{entityID, m_Context.get()};
+					if (entity.GetComponent<HierarchyComponent>().Parent == 0)
+					{
+						DrawEntityNode(entity);
+					}
+				}
+				ImGui::TreePop();
 			}
 
 			if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
 				m_SelectionContext = {};
 
-			// Right-click on blank space
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
+			ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 4.0f);
+
 			if (ImGui::BeginPopupContextWindow(0, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
 			{
-				if (ImGui::MenuItem ("Create Empty Entity"))
+				if (ImGui::MenuItem("Create Empty Entity"))
 					m_Context->CreateEntity("Empty Entity");
-
 				ImGui::EndPopup();
 			}
+
+			ImGui::PopStyleVar(3);
 		}
 		ImGui::End();
 
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
 		ImGui::Begin("Properties");
+		ImGui::PopStyleColor();
 		if (m_SelectionContext)
 		{
 			DrawComponents(m_SelectionContext);
@@ -177,6 +211,10 @@ namespace Mc {
 			m_SelectionContext = entity;
 		}
 
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 4.0f);
+
 		bool entityDeleted = false;
 		if (ImGui::BeginPopupContextItem())
 		{
@@ -185,6 +223,8 @@ namespace Mc {
 
 			ImGui::EndPopup();
 		}
+
+		ImGui::PopStyleVar(3);
 
 		if (opened)
 		{
@@ -237,46 +277,40 @@ namespace Mc {
 			ImVec2 buttonSize = {lineHeight + 3.0f, lineHeight};
 
 			// X value
-			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
-			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.9f, 0.2f, 0.2f, 1.0f});
-			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.8f, 0.1f, 0.15f, 1.0f});
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.0f, 0.0f, 0.0f, 0.0f});
+			ImGui::AlignTextToFramePadding();
 			ImGui::PushFont(boldFont);
-			if (ImGui::Button("X", buttonSize))
-				values.x = resetValue;
+			ImGui::Text("X");
 			ImGui::PopFont();
-			ImGui::PopStyleColor(3);
+			ImGui::PopStyleColor();
 
-			ImGui::SameLine();
+			ImGui::SameLine(0, 5.0f);
 			ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f");
 			ImGui::PopItemWidth();
-			ImGui::SameLine();
+			ImGui::SameLine(0, 5.0f);
 
 			// Y value
-			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.2f, 0.7f, 0.2f, 1.0f});
-			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.3f, 0.8f, 0.3f, 1.0f});
-			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.2f, 0.7f, 0.2f, 1.0f});
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.0f, 0.0f, 0.0f, 0.0f});
+			ImGui::AlignTextToFramePadding();
 			ImGui::PushFont(boldFont);
-			if (ImGui::Button("Y", buttonSize))
-				values.y = resetValue;
+			ImGui::Text("Y");
 			ImGui::PopFont();
-			ImGui::PopStyleColor(3);
+			ImGui::PopStyleColor();
 
-			ImGui::SameLine();
+			ImGui::SameLine(0, 5.0f);
 			ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f");
 			ImGui::PopItemWidth();
-			ImGui::SameLine();
+			ImGui::SameLine(0, 5.0f);
 
 			// Z value
-			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.1f, 0.25f, 0.8f, 1.0f});
-			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.2f, 0.35f, 0.9f, 1.0f});
-			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{0.1f, 0.25f, 0.8f, 1.0f});
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.0f, 0.0f, 0.0f, 0.0f});
+			ImGui::AlignTextToFramePadding();
 			ImGui::PushFont(boldFont);
-			if (ImGui::Button("Z", buttonSize))
-				values.z = resetValue;
+			ImGui::Text("Z");
 			ImGui::PopFont();
-			ImGui::PopStyleColor(3);
+			ImGui::PopStyleColor();
 
-			ImGui::SameLine();
+			ImGui::SameLine(0, 5.0f);
 			ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f");
 			ImGui::PopItemWidth();
 
@@ -303,13 +337,18 @@ namespace Mc {
 			bool open = ImGui::TreeNodeEx((void*)typeid(T).hash_code(), treeNodeFlags, name.c_str());
 			ImGui::PopStyleVar();
 
-			ImGui::SameLine(contentRegionAvailable.x - lineHeight * 0.5f);
+			ImGui::SameLine(contentRegionAvailable.x - lineHeight);
 			if (ImGui::Button("+", ImVec2{ lineHeight, lineHeight }))
 			{
 				ImGui::OpenPopup("ComponentSettings");
 			}
 
 			bool removeComponent = false;
+
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
+			ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 4.0f);
+
 			if (ImGui::BeginPopup("ComponentSettings"))
 			{
 				if (ImGui::MenuItem("Remove component"))
@@ -317,6 +356,7 @@ namespace Mc {
 
 				ImGui::EndPopup();
 			}
+			ImGui::PopStyleVar(3);
 
 			if (open)
 			{
@@ -363,6 +403,10 @@ namespace Mc {
 		if (ImGui::Button("Add Component"))
 			ImGui::OpenPopup("AddComponent");
 
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 4.0f);
+
 		if (ImGui::BeginPopup("AddComponent"))
 		{
 			DisplayAddComponentEntry<TransformComponent>("Transform");
@@ -377,6 +421,8 @@ namespace Mc {
 
 			ImGui::EndPopup();
 		}
+
+		ImGui::PopStyleVar(3);
 
 		ImGui::PopItemWidth();
 
