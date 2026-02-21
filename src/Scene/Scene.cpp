@@ -780,6 +780,7 @@ namespace Mc
 		}
 		// */
 
+		/*
 		{
 			auto uuid = UUID();
 			Entity entity = {m_Registry.create(), this};
@@ -793,21 +794,22 @@ namespace Mc
 			tag.Tag = "Directional Light";
 			m_EntityMap[uuid] = entity;
 		}
+		*/
 
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(1.0f, 6.0f, 0.0f);
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(1.0f, 6.0f, 0.0f);
 
-		// 	entity.AddComponent<PointLightComponent>();
+			entity.AddComponent<PointLightComponent>();
 
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "Point Light1";
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Point Light1";
 
-		// 	m_EntityMap[uuid] = entity;
-		// }
+			m_EntityMap[uuid] = entity;
+		}
 
 		// {
 		// 	auto uuid = UUID();
@@ -824,23 +826,23 @@ namespace Mc
 		// 	m_EntityMap[uuid] = entity;
 		// }
 
-		// {
-		// 	auto uuid = UUID();
-		// 	Entity entity = {m_Registry.create(), this};
-		// 	entity.AddComponent<IDComponent>();
-		// 	auto &transform = entity.AddComponent<TransformComponent>();
-		// 	transform.Translation = glm::vec3(6.0f, 4.0f, 4.0f);
-		// 	transform.Rotation = glm::vec3(-0.5f, 1.0f, 0.0f);
+		{
+			auto uuid = UUID();
+			Entity entity = {m_Registry.create(), this};
+			entity.AddComponent<IDComponent>();
+			auto &transform = entity.AddComponent<TransformComponent>();
+			transform.Translation = glm::vec3(6.0f, 4.0f, 4.0f);
+			transform.Rotation = glm::vec3(-0.5f, 1.0f, 0.0f);
 			
 
-		// 	auto& light = entity.AddComponent<SpotLightComponent>();
-		// 	light.Intensity = 10.0f;
-		// 	light.Radius = 20.0f;
+			auto& light = entity.AddComponent<SpotLightComponent>();
+			light.Intensity = 10.0f;
+			light.Radius = 20.0f;
 
-		// 	auto &tag = entity.AddComponent<TagComponent>();
-		// 	tag.Tag = "Spot Light";
-		// 	m_EntityMap[uuid] = entity;
-		// }
+			auto &tag = entity.AddComponent<TagComponent>();
+			tag.Tag = "Spot Light";
+			m_EntityMap[uuid] = entity;
+		}
 	}
 
 	template <typename T>

@@ -111,22 +111,26 @@ void main()
     vec4 localAnimatedPos = boneTransform * vec4(a_Position, 1.0);
     // ================================================================================================
 
-
     vec4 worldPos4 = transform * localAnimatedPos;
     vs_out.WorldPos = worldPos4.xyz;     // 世界空间位置
     gl_Position = u_ViewProjection * worldPos4;
 
     // 世界空间法线 (为了正确变换法线，需要使用模型矩阵的逆转置矩阵)
     // 假设没有非统一缩放，可以直接用 mat3(Model)
-    vs_out.NormalWS = mat3(transpose(inverse(transform))) * a_Normal;
+    vs_out.NormalWS = mat3(transpose(inverse(transform * boneTransform))) * a_Normal;
 
     vs_out.TexCoords = a_TexCoords;
     vs_out.TintColor = instance.TintColor;
 
     // 计算 TBN 矩阵 (切线空间到世界空间)
-    vec3 T = normalize(mat3(transform) * a_Tangent);
-    vec3 B = normalize(mat3(transform) * a_Bitangent);
-    vec3 N = normalize(mat3(transform) * a_Normal);
+    mat3 boneMat3 = mat3(boneTransform);
+    vec3 animatedNormal   = boneMat3 * a_Normal;
+    vec3 animatedTangent  = boneMat3 * a_Tangent;
+    vec3 animatedBitangent = boneMat3 * a_Bitangent;
+
+    vec3 T = normalize(mat3(transform) * animatedTangent);
+    vec3 B = normalize(mat3(transform) * animatedBitangent);
+    vec3 N = normalize(mat3(transform) * animatedNormal);
     T = normalize(T - dot(T, N) * N);
     B = normalize(cross(N, T));
     vs_out.TBN = mat3(T, B, N);

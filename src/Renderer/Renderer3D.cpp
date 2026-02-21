@@ -252,6 +252,7 @@ namespace Mc
 			glm::mat4 Transform;
 			uint32_t VertexArrayID = 0;
 			uint32_t IndexCount = 0;
+			glm::mat4 FinalBoneMatrices[MAX_BONES];
 		};
 		std::vector<ProjectionShadowData> ProjectionShadowDatas;
 
@@ -974,6 +975,8 @@ namespace Mc
 				for (auto &mesh : s_Data.ProjectionShadowDatas)
 				{
 					s_Data.PointShadowShader->SetMat4("u_Model", mesh.Transform);
+					for (int i = 0; i < MAX_BONES; i++)
+						s_Data.DirectionalShadowShader->SetMat4("u_FinalBoneMatrices[" + std::to_string(i) + "]", mesh.FinalBoneMatrices[i]);
 					glBindVertexArray(mesh.VertexArrayID);
 					glDrawElements(GL_TRIANGLE_STRIP, mesh.IndexCount, GL_UNSIGNED_INT, 0);
 				}
@@ -1020,6 +1023,8 @@ namespace Mc
 				for (auto &mesh : s_Data.ProjectionShadowDatas)
 				{
 					s_Data.DirectionalShadowShader->SetMat4("u_Model", mesh.Transform);
+					for (int i = 0; i < MAX_BONES; i++)
+						s_Data.DirectionalShadowShader->SetMat4("u_FinalBoneMatrices[" + std::to_string(i) + "]", mesh.FinalBoneMatrices[i]);
 					glBindVertexArray(mesh.VertexArrayID);
 					glDrawElements(GL_TRIANGLE_STRIP, mesh.IndexCount, GL_UNSIGNED_INT, 0);
 				}
@@ -1065,6 +1070,8 @@ namespace Mc
 				for (auto &mesh : s_Data.ProjectionShadowDatas)
 				{
 					s_Data.SpotShadowShader->SetMat4("u_Model", mesh.Transform);
+					for (int i = 0; i < MAX_BONES; i++)
+						s_Data.DirectionalShadowShader->SetMat4("u_FinalBoneMatrices[" + std::to_string(i) + "]", mesh.FinalBoneMatrices[i]);
 					glBindVertexArray(mesh.VertexArrayID);
 					glDrawElements(GL_TRIANGLE_STRIP, mesh.IndexCount, GL_UNSIGNED_INT, 0);
 				}
@@ -1174,11 +1181,17 @@ namespace Mc
 		{
 			auto id = s_Data.DefaultSphereMesh->GetVertexArray()->GetRendererID();
 			auto count = s_Data.DefaultSphereMesh->GetVertexArray()->GetIndexBuffer()->GetCount();
-			s_Data.ProjectionShadowDatas.push_back({
+			Renderer3DData::ProjectionShadowData instanceData = {
 				transform,
 				id,
 				count
-			});
+			};
+			glm::mat4 finalBoneMatrices[MAX_BONES];
+			for (int i = 0; i < MAX_BONES; i++)
+				finalBoneMatrices[i] = glm::mat4(1.0f);
+			memcpy(instanceData.FinalBoneMatrices, finalBoneMatrices, MAX_BONES * sizeof(glm::mat4));
+
+			s_Data.ProjectionShadowDatas.push_back(instanceData);
 		}
 
 		glm::vec4 albedo = glm::vec4(1.0f);
@@ -1255,17 +1268,30 @@ namespace Mc
 			NextBatch();
 		}
 
+		glm::mat4 finalBoneMatrices[MAX_BONES];
+		{
+			if (src.ReceivesAnimator)
+				for (int i = 0; i < MAX_BONES; i++)
+					finalBoneMatrices[i] = src.Model->GetAnimator()->GetFinalBoneMatrices()[i];
+			else
+				for (int i = 0; i < MAX_BONES; i++)
+					finalBoneMatrices[i] = glm::mat4(1.0f);
+		}
+
 		if (src.ProjectionShadow)
 		{
 			auto data = MeshManager::Get().GetMeshByID(mesh->Id);
 			auto id = data->GetVertexArray()->GetRendererID();
 			auto count = data->GetIndexBuffer()->GetCount();
 
-			s_Data.ProjectionShadowDatas.push_back({
+			Renderer3DData::ProjectionShadowData instanceData = {
 				transform,
 				id,
-				count,
-			});
+				count
+			};
+			memcpy(instanceData.FinalBoneMatrices, finalBoneMatrices, MAX_BONES * sizeof(glm::mat4));
+
+			s_Data.ProjectionShadowDatas.push_back(instanceData);
 		}
 
 		glm::vec4 albedo = glm::vec4(1.0f);
@@ -1315,18 +1341,7 @@ namespace Mc
 			(int)src.ReceivesLight,
 			(int)src.ReceivesShadow,
 		};
-
-		{
-			glm::mat4 finalBoneMatrices[MAX_BONES];
-			if (src.ReceivesAnimator)
-				for (int i = 0; i < MAX_BONES; i++)
-					finalBoneMatrices[i] = src.Model->GetAnimator()->GetFinalBoneMatrices()[i];
-			else
-				for (int i = 0; i < MAX_BONES; i++)
-					finalBoneMatrices[i] = glm::mat4(1.0f);
-
-			memcpy(instanceData.FinalBoneMatrices, finalBoneMatrices, MAX_BONES * sizeof(glm::mat4));
-		}
+		memcpy(instanceData.FinalBoneMatrices, finalBoneMatrices, MAX_BONES * sizeof(glm::mat4));
 
 		batch.Instances.push_back(instanceData);
 		batch.InstanceCount++;

@@ -121,12 +121,16 @@ namespace Mc {
 
 			if (ImGui::TreeNodeEx("Lights", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				auto view = m_Context->m_Registry.view<DirectionalLightComponent>();
-				for (auto entityID : view)
+				auto Directionalview = m_Context->m_Registry.view<DirectionalLightComponent>();
+				for (auto entityID : Directionalview)
 					DrawEntityNode({entityID, m_Context.get()});
 
 				auto pointView = m_Context->m_Registry.view<PointLightComponent>();
 				for (auto entityID : pointView)
+					DrawEntityNode({entityID, m_Context.get()});
+
+				auto spotView = m_Context->m_Registry.view<SpotLightComponent>();
+				for (auto entityID : spotView)
 					DrawEntityNode({entityID, m_Context.get()});
 
 				ImGui::TreePop();
