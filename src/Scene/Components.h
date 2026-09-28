@@ -35,6 +35,14 @@ namespace Mc
 			: Tag(tag) {}
 	};
 
+	struct VisibleComponent
+	{
+		bool Visible = true;
+
+		VisibleComponent() = default;
+		VisibleComponent(const VisibleComponent &) = default;
+	};
+
 	struct TransformComponent
 	{
 		glm::vec3 Translation = { 0.0f, 0.0f, 0.0f };
@@ -216,7 +224,7 @@ namespace Mc
 	};
 
 	using AllComponents =
-		ComponentGroup<TransformComponent, CameraComponent,
+		ComponentGroup<TransformComponent, CameraComponent, VisibleComponent,
 		DirectionalLightComponent,PointLightComponent,SpotLightComponent,
 		ShadowComponent,
 		SphereRendererComponent,

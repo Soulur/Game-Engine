@@ -54,6 +54,9 @@ namespace Mc
         // UI Panels
         void UI_MainMenuBar();
         void UI_Toolbar();
+        void UI_TransformToolbar();
+        void UI_SettingsToolbar();
+        void UI_Log();
 
     private:
         EditorCamera m_EditorCamera;
@@ -97,5 +100,12 @@ namespace Mc
         // Editor resources
         Ref<Texture2D> m_IconMinimize, m_IconMaximize, m_IconRestore, m_IconClose;
         Ref<Texture2D> m_IconPlay, m_IconPause, m_IconStep, m_IconSimulate, m_IconStop;
+
+        Ref<Texture2D> m_IconCursorDefault, m_IconCursorDefaultSelect,
+        m_IconDisplacement, m_IconDisplacementSelect,
+        m_IconSync, m_IconSyncSelect,
+        m_IconZooming, m_IconZoomingSelect;
+
+        Ref<Texture2D> m_IconSettings;
     };
 }

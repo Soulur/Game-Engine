@@ -33,16 +33,28 @@ namespace Mc
 
     void EditorLayer::OnAttach()
     {
-        m_IconMinimize = Texture2D::Create("Resources/Icons/minus.png");
-        m_IconMaximize = Texture2D::Create("Resources/Icons/checkbox-blank-outline.png");
-        m_IconRestore = Texture2D::Create("Resources/Icons/checkbox-multiple-blank-outline.png");
-        m_IconClose = Texture2D::Create("Resources/Icons/close.png");
+        m_IconMinimize = Texture2D::Create("Resources/Icons/TransformWindow/minus.png");
+        m_IconMaximize = Texture2D::Create("Resources/Icons/TransformWindow/checkbox-blank-outline.png");
+        m_IconRestore = Texture2D::Create("Resources/Icons/TransformWindow/checkbox-multiple-blank-outline.png");
+        m_IconClose = Texture2D::Create("Resources/Icons/TransformWindow/close.png");
 
-        m_IconPlay = Texture2D::Create("Resources/Icons/PlayButton.png");
-        m_IconPause = Texture2D::Create("Resources/Icons/PauseButton.png");
-        m_IconSimulate = Texture2D::Create("Resources/Icons/SimulateButton.png");
-        m_IconStep = Texture2D::Create("Resources/Icons/StepButton.png");
-        m_IconStop = Texture2D::Create("Resources/Icons/StopButton.png");
+        
+        m_IconPlay = Texture2D::Create("Resources/Icons/TransformStatus/PlayButton.png");
+        m_IconPause = Texture2D::Create("Resources/Icons/TransformStatus/PauseButton.png");
+        m_IconSimulate = Texture2D::Create("Resources/Icons/TransformStatus/SimulateButton.png");
+        m_IconStep = Texture2D::Create("Resources/Icons/TransformStatus/StepButton.png");
+        m_IconStop = Texture2D::Create("Resources/Icons/TransformStatus/StopButton.png");
+
+        m_IconCursorDefault = Texture2D::Create("Resources/Icons/TransformToolbar/cursor-default.png");
+        m_IconCursorDefaultSelect = Texture2D::Create("Resources/Icons/TransformToolbar/cursor-default-Select.png");
+        m_IconDisplacement = Texture2D::Create("Resources/Icons/TransformToolbar/arrow-all.png");
+        m_IconDisplacementSelect = Texture2D::Create("Resources/Icons/TransformToolbar/arrow-all-Select.png");
+        m_IconSync = Texture2D::Create("Resources/Icons/TransformToolbar/sync.png");
+        m_IconSyncSelect = Texture2D::Create("Resources/Icons/TransformToolbar/sync-Select.png");
+        m_IconZooming = Texture2D::Create("Resources/Icons/TransformToolbar/arrow-expand-all.png");
+        m_IconZoomingSelect = Texture2D::Create("Resources/Icons/TransformToolbar/arrow-expand-all-Select.png");
+
+        m_IconSettings = Texture2D::Create("Resources/Icons/Settings.png");
 
         FramebufferSpecification fbSpec;
         fbSpec.Attachments = {FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::RED_INTEGER, FramebufferTextureFormat::DEPTH24STENCIL8};
@@ -186,33 +198,8 @@ namespace Mc
         m_SceneHierarchyPanel.OnImGuiRender();
         m_ProjectBrowserPanel.OnImGuiRender();
 
+        UI_Log();
 
-        // ---------------------------------------------------------------------------------------
-
-
-        // ---------------------------------------------------------------------------------------
-
-        // ---------------------------------------------------------------------------------------
-        // Log
-        // ImGui::Begin("LOG");
-
-        // std::string result;
-        // std::ifstream in("log.log", std::ios::in | std::ios::binary);
-        // if (in)
-        // {
-        //     in.seekg(0, std::ios::end);
-        //     size_t size = in.tellg();
-        //     if (size != -1)
-        //     {
-        //         result.resize(size);
-        //         in.seekg(0, std::ios::beg);
-        //         in.read(&result[0], size);
-        //         in.close();
-        //     }
-        // }
-
-        // ImGui::Text(result.c_str());
-        // ImGui::End();
         // ---------------------------------------------------------------------------------------------------------
 
         /*
@@ -232,6 +219,22 @@ namespace Mc
         ImGui::Text("Sphere: %d", stats.SphereCount / 2);
         ImGui::Text("Model: %d", stats.ModelCount / 2);
 
+        ImGui::End();
+
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking |
+                                ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                                ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
+
+        ImGui::SetNextWindowBgAlpha(0.35f); // 背景半透明
+        ImGui::SetNextWindowPos(ImVec2(viewportPos.x + 10, viewportPos.y + 10)); // 放在视口左上角
+
+        if (ImGui::Begin("Renderer Stats Overlay", nullptr, window_flags))
+        {
+            ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate); // 顺便加上帧率
+            ImGui::Separator();
+            ImGui::Text("Draw Calls: %d", stats.DrawCalls);
+            // ... 其他统计 ...
+        }
         ImGui::End();
         */
 
@@ -324,6 +327,8 @@ namespace Mc
         }
 
         UI_Toolbar();
+        UI_TransformToolbar();
+        UI_SettingsToolbar();
 
         ImGui::End();
         ImGui::PopStyleVar();
@@ -695,46 +700,51 @@ namespace Mc
 
     void EditorLayer::UI_Toolbar()
     {
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 2));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(0, 0));
+        float toolbarHeight = 44.0f;
+        float iconSize = 26.0f;
+        float itemSpacingX = 10.0f;
+        float windowPaddingX = 12.0f;
+
+        // ==== 1. 显式定义 Padding，消除隐式边距干扰 ====
+        float framePaddingY = 4.0f; // 按钮上下内边距
+        float framePaddingX = 2.0f; // 按钮左右内边距
+
+        // 按钮实际占用的总宽高
+        float actualButtonWidth = iconSize + (framePaddingX * 2.0f);
+        float actualButtonHeight = iconSize + (framePaddingY * 2.0f);
+
+        int numButtons = 3;
+        float contentWidth = (numButtons * actualButtonWidth) + ((numButtons - 1) * itemSpacingX);
+        float toolbarWidth = contentWidth + (windowPaddingX * 2.0f);
+
+        // ==== 2. 样式设置 ====
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(framePaddingX, framePaddingY)); // 必须显式 Push
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(itemSpacingX, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.0f);
+
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
         auto &colors = ImGui::GetStyle().Colors;
-        const auto &buttonHovered = colors[ImGuiCol_ButtonHovered];
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(buttonHovered.x, buttonHovered.y, buttonHovered.z, 0.5f));
-        const auto &buttonActive = colors[ImGuiCol_ButtonActive];
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(buttonActive.x, buttonActive.y, buttonActive.z, 0.5f));
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.0f);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(colors[ImGuiCol_ButtonHovered].x, colors[ImGuiCol_ButtonHovered].y, colors[ImGuiCol_ButtonHovered].z, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(colors[ImGuiCol_ButtonActive].x, colors[ImGuiCol_ButtonActive].y, colors[ImGuiCol_ButtonActive].z, 0.5f));
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.1f, 0.1f, 0.1f, 0.6f));
 
-        float toolbarHeight = 30.0f;
-        float toolbarWidth = 120.0f;
-
+        // ==== 3. 窗口定位 ====
         ImVec2 windowPos = ImGui::GetWindowPos();
-        ImVec2 windowSize = ImGui::GetWindowSize();
-
-        float targetPosX = windowPos.x + (windowSize.x - toolbarWidth) * 0.5f;
-        float targetPosY = windowPos.y + 5.0f;
-
-        ImGui::SetNextWindowPos(ImVec2(targetPosX, targetPosY));
-
+        ImGui::SetNextWindowPos(ImVec2(windowPos.x + (ImGui::GetWindowSize().x - toolbarWidth) * 0.5f, windowPos.y + 5.0f));
         ImGui::SetNextWindowSize(ImVec2(toolbarWidth, toolbarHeight));
 
-        ImGuiWindowFlags toolbarFlags = ImGuiWindowFlags_NoDecoration |
-                                        ImGuiWindowFlags_NoMove |
-                                        ImGuiWindowFlags_NoSavedSettings |
-                                        ImGuiWindowFlags_NoScrollbar;
+        ImGuiWindowFlags toolbarFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                                        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar;
 
         ImGui::Begin("##toolbar", nullptr, toolbarFlags);
 
         bool toolbarEnabled = (bool)m_ActiveScene;
+        ImVec4 tintColor = toolbarEnabled ? ImVec4(1, 1, 1, 1) : ImVec4(1, 1, 1, 0.5f);
+        ImVec4 bgColor = ImVec4(0, 0, 0, 0);
 
-        ImVec4 bgColor = ImVec4(0, 0, 0, 0); // 背景色，通常透明
-        ImVec4 tintColor = ImVec4(1, 1, 1, 1);
-        if (!toolbarEnabled)
-            tintColor.w = 0.5f;
-
-        float size = toolbarHeight - 10.0f;
-        ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * 0.5f) - size * 2.5f);
+        float verticalCursorY = (toolbarHeight - actualButtonHeight) * 0.5f;
+        ImGui::SetCursorPos(ImVec2(windowPaddingX, verticalCursorY));
 
         bool hasPlayButton = true;
         bool hasSimulateButton = true;
@@ -746,7 +756,7 @@ namespace Mc
             const char *buttonID = (m_SceneState == SceneState::Play) ? "##EditButton" : "##PlayButton";
             ImTextureID textureID = (ImTextureID)icon->GetRendererID();
 
-            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(size, size), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
+            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(iconSize, iconSize), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
             {
                 if (m_SceneState == SceneState::Edit || m_SceneState == SceneState::Simulate)
                     OnScenePlay();
@@ -763,7 +773,7 @@ namespace Mc
             const char *buttonID = (m_SceneState == SceneState::Simulate) ? "##EditButton" : "##SimulateButton";
             ImTextureID textureID = (ImTextureID)icon->GetRendererID();
 
-            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(size, size), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
+            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(iconSize, iconSize), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
             {
                 if (m_SceneState == SceneState::Edit || m_SceneState == SceneState::Play)
                     OnSceneSimulate();
@@ -780,7 +790,7 @@ namespace Mc
             const char *buttonID = m_ActiveScene->IsPaused() ? "##StepButton" : "##PauseButton";
             ImTextureID textureID = (ImTextureID)icon->GetRendererID();
 
-            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(size, size), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
+            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(iconSize, iconSize), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
             {
                 if (!m_ActiveScene->IsPaused())
                     OnScenePause();
@@ -789,9 +799,336 @@ namespace Mc
             }
         }
 
-        ImGui::PopStyleVar(3);
+        ImGui::PopStyleVar(4);
         ImGui::PopStyleColor(4);
         ImGui::End();
+    }
+
+    void EditorLayer::UI_TransformToolbar()
+    {
+        float toolbarHeight = 40.0f;
+        float iconSize = 24.0f;
+        float itemSpacingX = 3.0f;
+        float windowPaddingX = 12.0f;
+
+        // ==== 1. 显式定义 Padding，消除隐式边距干扰 ====
+        float framePaddingY = 4.0f; // 按钮上下内边距
+        float framePaddingX = 2.0f; // 按钮左右内边距
+
+        // 按钮实际占用的总宽高
+        float actualButtonWidth = iconSize + (framePaddingX * 2.0f);
+        float actualButtonHeight = iconSize + (framePaddingY * 2.0f);
+
+        int numButtons = 4;
+        float contentWidth = (numButtons * actualButtonWidth) + ((numButtons - 1) * itemSpacingX);
+        float toolbarWidth = contentWidth + (windowPaddingX * 2.0f);
+
+        // ==== 2. 样式设置 ====
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(framePaddingX, framePaddingY)); // 必须显式 Push
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(itemSpacingX, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.0f);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        auto &colors = ImGui::GetStyle().Colors;
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(colors[ImGuiCol_ButtonHovered].x, colors[ImGuiCol_ButtonHovered].y, colors[ImGuiCol_ButtonHovered].z, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(colors[ImGuiCol_ButtonActive].x, colors[ImGuiCol_ButtonActive].y, colors[ImGuiCol_ButtonActive].z, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.1f, 0.1f, 0.1f, 0.6f));
+
+        // ==== 3. 窗口定位 ====
+        ImVec2 windowPos = ImGui::GetWindowPos();
+        ImGui::SetNextWindowPos(ImVec2(windowPos.x + 10.0f, windowPos.y + 5.0f));
+        ImGui::SetNextWindowSize(ImVec2(toolbarWidth, toolbarHeight));
+
+        ImGuiWindowFlags toolbarFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                                        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar;
+
+        ImGui::Begin("##transformToolbar", nullptr, toolbarFlags);
+
+        bool toolbarEnabled = (bool)m_ActiveScene;
+        ImVec4 tintColor = toolbarEnabled ? ImVec4(1, 1, 1, 1) : ImVec4(1, 1, 1, 0.5f);
+        ImVec4 bgColor = ImVec4(0, 0, 0, 0);
+
+        float verticalCursorY = (toolbarHeight - actualButtonHeight) * 0.5f;
+        ImGui::SetCursorPos(ImVec2(windowPaddingX, verticalCursorY));
+
+        {
+            bool isSelect = m_GizmoType == -1;
+            ImTextureID textureID = isSelect ? (ImTextureID)m_IconCursorDefaultSelect->GetRendererID() : (ImTextureID)m_IconCursorDefault->GetRendererID();
+            const char *buttonID = isSelect ? "##CursorDefaultSelect" : "##CursorDefault";
+            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(iconSize, iconSize), ImVec2(0, 1), ImVec2(1, 0), bgColor, tintColor))
+            {
+                m_GizmoType = -1;
+            }
+        }
+
+        {
+            ImGui::SameLine();
+
+            bool isSelect = m_GizmoType == ImGuizmo::OPERATION::TRANSLATE;
+            ImTextureID textureID = isSelect ? (ImTextureID)m_IconDisplacementSelect->GetRendererID() : (ImTextureID)m_IconDisplacement->GetRendererID();
+            const char *buttonID = isSelect ? "##DisplacementSelect" : "##Displacement";
+            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(iconSize, iconSize), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
+            {
+                m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
+            }
+        }
+
+        {
+            ImGui::SameLine();
+
+            bool isSelect = m_GizmoType == ImGuizmo::OPERATION::ROTATE;
+            ImTextureID textureID = isSelect ? (ImTextureID)m_IconSyncSelect->GetRendererID() : (ImTextureID)m_IconSync->GetRendererID();
+            const char *buttonID = isSelect ? "##SyncSelect" : "##Sync";
+            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(iconSize, iconSize), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
+            {
+                m_GizmoType = ImGuizmo::OPERATION::ROTATE;
+            }
+        }
+
+        {
+            ImGui::SameLine();
+
+            bool isSelect = m_GizmoType == ImGuizmo::OPERATION::SCALE;
+            ImTextureID textureID = isSelect ? (ImTextureID)m_IconZoomingSelect->GetRendererID() : (ImTextureID)m_IconZooming->GetRendererID();
+            const char *buttonID = isSelect ? "##ZoomingSelect" : "##Zooming";
+            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(iconSize, iconSize), ImVec2(0, 0), ImVec2(1, 1), bgColor, tintColor))
+            {
+                m_GizmoType = ImGuizmo::OPERATION::SCALE;
+            }
+        }
+
+        ImGui::PopStyleVar(4);
+        ImGui::PopStyleColor(4);
+        ImGui::End();
+    }
+
+    void EditorLayer::UI_SettingsToolbar()
+    {
+        float toolbarHeight = 40.0f;
+        float iconSize = 24.0f;
+        float itemSpacingX = 3.0f;
+        float windowPaddingX = 5.0f;
+
+        // ==== 1. 显式定义 Padding，消除隐式边距干扰 ====
+        float framePaddingY = 4.0f; // 按钮上下内边距
+        float framePaddingX = 2.0f; // 按钮左右内边距
+
+        // 按钮实际占用的总宽高
+        float actualButtonWidth = iconSize + (framePaddingX * 2.0f);
+        float actualButtonHeight = iconSize + (framePaddingY * 2.0f);
+
+        int numButtons = 1;
+        float contentWidth = (numButtons * actualButtonWidth) + ((numButtons - 1) * itemSpacingX);
+        float toolbarWidth = contentWidth + (windowPaddingX * 2.0f);
+
+        // ==== 2. 样式设置 ====
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(framePaddingX, framePaddingY)); // 必须显式 Push
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(itemSpacingX, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.0f);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        auto &colors = ImGui::GetStyle().Colors;
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(colors[ImGuiCol_ButtonHovered].x, colors[ImGuiCol_ButtonHovered].y, colors[ImGuiCol_ButtonHovered].z, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(colors[ImGuiCol_ButtonActive].x, colors[ImGuiCol_ButtonActive].y, colors[ImGuiCol_ButtonActive].z, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.1f, 0.1f, 0.1f, 0.6f));
+
+        // ==== 3. 窗口定位 ====
+        ImVec2 windowPos = ImGui::GetWindowPos();
+        ImGui::SetNextWindowPos(ImVec2(windowPos.x + ImGui::GetWindowSize().x - toolbarWidth - 10.0f, windowPos.y + 5.0f));
+        ImGui::SetNextWindowSize(ImVec2(toolbarWidth, toolbarHeight));
+
+        ImGuiWindowFlags toolbarFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                                        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar;
+
+        ImGui::Begin("##showToolbar", nullptr, toolbarFlags);
+
+        bool toolbarEnabled = (bool)m_ActiveScene;
+        ImVec4 tintColor = toolbarEnabled ? ImVec4(1, 1, 1, 1) : ImVec4(1, 1, 1, 0.5f);
+        ImVec4 bgColor = ImVec4(0, 0, 0, 0);
+
+        float verticalCursorY = (toolbarHeight - actualButtonHeight) * 0.5f;
+        ImGui::SetCursorPos(ImVec2(windowPaddingX, verticalCursorY));
+
+        {
+            ImTextureID textureID = (ImTextureID)m_IconSettings->GetRendererID();
+            const char *buttonID = "##EditSettings";
+            if (ImGui::ImageButton(buttonID, (ImTextureRef)textureID, ImVec2(iconSize, iconSize), ImVec2(0, 1), ImVec2(1, 0), bgColor, tintColor))
+            {
+                ImGui::OpenPopup("SettingsPopup");
+            }
+
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 12.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 10.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 4.0f);
+            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+
+            float popupWidth = 300.0f;
+            float popupPosX = ImGui::GetWindowPos().x + toolbarWidth - popupWidth;
+            float popupPosY = ImGui::GetWindowPos().y + toolbarHeight + 5.0f;
+
+            ImGui::SetNextWindowPos(ImVec2(popupPosX, popupPosY));
+            ImGui::SetNextWindowSize(ImVec2(popupWidth, 0.0f));
+
+            if (ImGui::BeginPopup("SettingsPopup"))
+            {
+                // --- [General 组] ---
+                ImGui::TextDisabled("General"); // 使用灰色小字作为标题
+                ImGui::Separator();             // 标题下的分割线
+
+                if (ImGui::BeginTable("##general_table", 2, ImGuiTableFlags_SizingStretchProp))
+                {
+                    ImGui::EndTable();
+                }
+
+                ImGui::Spacing();
+
+                ImGui::TextDisabled("Display");
+                ImGui::Separator();
+
+                if (ImGui::BeginTable("##display_table", 2, ImGuiTableFlags_SizingStretchProp))
+                {
+                    ImGui::EndTable();
+                }
+
+                ImGui::EndPopup();
+            }
+            ImGui::PopStyleVar(3);
+            ImGui::PopStyleColor();
+        }
+
+        ImGui::PopStyleVar(4);
+        ImGui::PopStyleColor(4);
+        ImGui::End();
+    }
+
+    void EditorLayer::UI_Log()
+    {
+        ImGui::Begin("LOG");
+        std::string result;
+        std::ifstream in("log.log", std::ios::in | std::ios::binary);
+        if (in)
+        {
+            in.seekg(0, std::ios::end);
+            size_t size = in.tellg();
+            if (size != -1)
+            {
+                result.resize(size);
+                in.seekg(0, std::ios::beg);
+                in.read(&result[0], size);
+                in.close();
+            }
+        }
+
+        {
+
+            std::vector<std::string> m_LogLines;
+            std::stringstream ss(result);
+            std::string line;
+
+            while (std::getline(ss, line))
+            {
+                m_LogLines.push_back(line);
+            }
+
+            {
+                // 建议：如果你有等宽字体，请在这里 Push，会让时间戳对齐更美观
+                for (const auto &line : m_LogLines) // m_LogLines 是你从 log.log 读取的行集合
+                {
+                    // --- 1. 处理时间戳 (灰色) ---
+                    size_t timeEnd = line.find(']');
+                    if (timeEnd != std::string::npos && line[0] == '[')
+                    {
+                        ImGui::TextDisabled("%s", line.substr(0, timeEnd + 1).c_str());
+                        ImGui::SameLine();
+                    }
+
+                    // --- 2. 处理级别与内容 (彩色) ---
+                    if (line.find("[info]") != std::string::npos)
+                    {
+                        ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.0f), "[info]"); // 绿色
+                    }
+                    else if (line.find("[error]") != std::string::npos || line.find("Assertion failed") != std::string::npos)
+                    {
+                        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "[error]"); // 红色
+                    }
+                    else if (line.find("[warn]") != std::string::npos)
+                    {
+                        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "[warn]"); // 黄色
+                    }
+
+                    ImGui::SameLine();
+
+                    // --- 3. 处理来源 (例如 CORE:) ---
+                    size_t corePos = line.find("CORE:");
+                    if (corePos != std::string::npos)
+                    {
+                        ImGui::TextColored(ImVec4(0.3f, 0.6f, 0.9f, 1.0f), "CORE:"); // 蓝色
+                        ImGui::SameLine();
+                        // 剩余的内容用默认白色显示
+                        ImGui::TextUnformatted(line.substr(corePos + 5).c_str());
+                    }
+                    else
+                    {
+                        // 如果没匹配到 CORE:，则输出剩余全部文本
+                        size_t msgStart = line.find_last_of(']') + 1;
+                        ImGui::TextUnformatted(line.substr(msgStart).c_str());
+                    }
+                }
+
+                // 自动滚动到底部
+                // if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+                //     ImGui::SetScrollHereY(1.0f);
+            }
+
+            // ImGui::Text(m_LogLines.front().c_str());
+        }
+
+        ImGui::End();
+
+
+        // ImGui::Begin("LOG");
+
+        // // 建议使用等宽字体以对齐时间戳
+        // for (const auto &line : m_LogLines)
+        // {
+        //     bool colorPushed = false;
+
+        //     // --- 1. 识别日志级别并设置颜色 ---
+        //     if (line.find("[error]") != std::string::npos || line.find("Assertion failed") != std::string::npos)
+        //     {
+        //         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.33f, 0.33f, 1.0f)); // 醒目的红色
+        //         colorPushed = true;
+        //     }
+        //     else if (line.find("[warn]") != std::string::npos)
+        //     {
+        //         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.0f, 1.0f)); // 警告橙黄色
+        //         colorPushed = true;
+        //     }
+        //     else if (line.find("[info]") != std::string::npos)
+        //     {
+        //         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.85f, 0.5f, 1.0f)); // 这里的绿色比 image_991709.png 更柔和
+        //         colorPushed = true;
+        //     }
+        //     else if (line.find("CORE:") != std::string::npos)
+        //     {
+        //         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.6f, 0.9f, 1.0f)); // 系统核心信息用蓝色
+        //         colorPushed = true;
+        //     }
+
+        //     // --- 2. 渲染文本 ---
+        //     ImGui::TextUnformatted(line.c_str());
+
+        //     if (colorPushed)
+        //         ImGui::PopStyleColor();
+        // }
+
+        // // --- 3. 自动滚动逻辑 ---
+        // if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+        //     ImGui::SetScrollHereY(1.0f);
+
+        // ImGui::End();
     }
 
     void EditorLayer::OnDuplicateEntity()

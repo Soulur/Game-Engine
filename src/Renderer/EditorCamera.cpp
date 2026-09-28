@@ -86,7 +86,14 @@ namespace Mc {
 		UpdateView();
 	}
 
-	void EditorCamera::OnEvent(Event& e)
+    void EditorCamera::OnPreviewMaterialUpdate(Timestep ts)
+    {
+		float rotationSpeed = 0.5f;
+		m_Yaw += rotationSpeed * ts;
+		UpdateView();
+	}
+
+    void EditorCamera::OnEvent(Event& e)
 	{
 		EventDispatcher dispatcher(e);
 		dispatcher.Dispatch<MouseScrolledEvent>(BIND_EVENT_FN(EditorCamera::OnMouseScroll));

@@ -33,7 +33,7 @@ namespace Mc {
 		//io.ConfigFlags |= ImGuiConfigFlags_ViewportsNoMerge;
 
 		// Fonts
-		float fontSize = 13.0f;
+		float fontSize = 20.0f;
 		io.Fonts->AddFontFromFileTTF("Assets/fonts/CascadiaMono/CascadiaMono-Bold.ttf", fontSize);
 		io.Fonts->AddFontFromFileTTF("Assets/fonts/CascadiaMono/CascadiaMono-ExtraLight.ttf", fontSize);
 		io.Fonts->AddFontFromFileTTF("Assets/fonts/CascadiaMono/CascadiaMono-Light.ttf", fontSize);
@@ -116,7 +116,7 @@ namespace Mc {
 	void ImGuiLayer::SetDarkThemeColors()
 	{
 		// Green
-		auto greenColor = ImVec4{ (float)0 / 255, (float)204 / 255, (float)61 / 255 , 0.5f };
+		auto greenColor = ImVec4{ (float)17 / 255, (float)108 / 255, (float)46 / 255 , 0.5f };
 
 		auto& colors = ImGui::GetStyle().Colors;
 		colors[ImGuiCol_WindowBg] = ImVec4{ 0.1f, 0.105f, 0.11f, 1.0f };
@@ -126,13 +126,13 @@ namespace Mc {
 		colors[ImGuiCol_HeaderActive] = greenColor;
 		
 		// Buttons
-		colors[ImGuiCol_Button] = ImVec4{ 0.2f, 0.205f, 0.21f, 1.0f };
-		colors[ImGuiCol_ButtonHovered] = ImVec4{ 0.3f, 0.305f, 0.31f, 1.0f };
+		colors[ImGuiCol_Button] = ImVec4{0.18f, 0.18f, 0.18f, 1.0f};
+		colors[ImGuiCol_ButtonHovered] = ImVec4{0.25f, 0.25f, 0.25f, 1.0f};
 		colors[ImGuiCol_ButtonActive] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
 
 		// Frame BG
-		colors[ImGuiCol_FrameBg] = ImVec4{ 0.2f, 0.205f, 0.21f, 1.0f };
-		colors[ImGuiCol_FrameBgHovered] = ImVec4{ 0.3f, 0.305f, 0.31f, 1.0f };
+		colors[ImGuiCol_FrameBg] = ImVec4{0.1f, 0.1f, 0.1f, 1.0f};
+		colors[ImGuiCol_FrameBgHovered] = ImVec4{0.25f, 0.25f, 0.25f, 1.0f};
 		colors[ImGuiCol_FrameBgActive] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
 
 		// Tabs

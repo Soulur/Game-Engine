@@ -1170,8 +1170,64 @@ namespace Mc
 		StartBatch();
 	}
 
-	void Renderer3D::DrawSphere(const glm::mat4 &transform, SphereRendererComponent &src, MaterialComponent *material, int entityID)
-	{
+    void Renderer3D::DrawSphere(glm::mat4 &transform, MaterialComponent material, int entityID)
+    {
+		if (s_Data.SphereCount >= Renderer3DData::MaxSphereCount)
+		{
+			NextBatch();
+		}
+
+		glm::vec4 albedo = glm::vec4(1.0f);
+		glm::vec4 emissive = glm::vec4(0.0f);
+
+		std::vector<int> arrIndex(7, 0);
+
+		float roughness = 0.5f;
+		float metallic = 0.0f;
+		float ao = 1.0f;
+
+		arrIndex = Mc::Utils::GetMaterialTextureIndices(material);
+		albedo = glm::vec4(material.Albedo, 1.0f);
+		emissive = glm::vec4(material.Emissive, 1.0f);
+		roughness = material.Roughness;
+		metallic = material.Metallic;
+		ao = material.Ao;
+
+		s_Data.SphereInstances.push_back({
+			transform,
+			glm::vec4(1.0f),
+
+			albedo,
+			emissive,
+			roughness,
+			metallic,
+			ao,
+
+			// Texture
+			arrIndex[0],
+			arrIndex[1],
+			arrIndex[2],
+			arrIndex[3],
+			arrIndex[4],
+			arrIndex[5],
+			arrIndex[6],
+
+			1.0f,
+			entityID,
+
+			1,
+			1,
+			1,
+			0,
+		});
+
+		arrIndex.clear();
+		s_Data.SphereCount++;
+		s_Data.Stats.SphereCount++;
+	}
+
+    void Renderer3D::DrawSphere(const glm::mat4 &transform, SphereRendererComponent &src, MaterialComponent *material, int entityID)
+    {
 		if (s_Data.SphereCount >= Renderer3DData::MaxSphereCount)
 		{
 			NextBatch();
@@ -1352,8 +1408,35 @@ namespace Mc
 		s_Data.Stats.ModelCount++; // 统计渲染的模型实例数量
 	}
 
-    void Renderer3D::DrawDirectionalLight(const glm::mat4 &transform, DirectionalLightComponent &src, ShadowComponent *shadow, int entityID)
+	void Renderer3D::DrawDirectionalLight(glm::vec3 direction, glm::vec3 color)
 	{
+		if (s_Data.DirectionalLights.size() < Renderer3DData::MAX_DIRECTIONAL_LIGHTS)
+		{
+			StoredDirectionalLight dirLight;
+			// 确保方向归一化
+			dirLight.Direction = glm::normalize(direction);
+			dirLight.Color = color;
+			dirLight.Intensity = 10.0f;
+			dirLight.CastsShadows = 0; // 预览通常关闭阴影以提高性能并减少黑块
+
+			// 填充填充位
+			dirLight.padding_0 = 0.0f;
+			dirLight.padding_1 = 0.0f;
+			dirLight.padding_2 = 0.0f;
+
+			dirLight.LightSpaceMatrix = glm::mat4(0.0f);
+			dirLight.ShadowMapIndex = -1;
+
+			s_Data.DirectionalLights.push_back(dirLight);
+		}
+		else
+		{
+			LOG_CORE_WARN("Max directional lights reached!");
+		}
+	}
+
+    void Renderer3D::DrawDirectionalLight(const glm::mat4 &transform, DirectionalLightComponent &src, ShadowComponent *shadow, int entityID)
+    {
 		if (s_Data.DirectionalLights.size() < Renderer3DData::MAX_DIRECTIONAL_LIGHTS)
 		{
 			glm::vec3 direction = glm::normalize(glm::vec3(transform * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));

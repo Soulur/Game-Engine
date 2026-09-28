@@ -46,7 +46,8 @@ FetchContent_Declare(
 FetchContent_Declare(
   imguizmo
   GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git
-  GIT_TAG        master
+  GIT_TAG        1.10
+  SOURCE_SUBDIR  cmake-disabled
 )
 
 FetchContent_Declare(
@@ -92,9 +93,9 @@ target_include_directories(imgui PUBLIC
 target_link_libraries(imgui PUBLIC glad glfw)
 
 # Add ImGuizmo 库
-add_library(ImGuizmo STATIC ${imguizmo_SOURCE_DIR}/ImGuizmo.cpp)
+add_library(ImGuizmo STATIC ${imguizmo_SOURCE_DIR}/src/ImGuizmo.cpp)
 target_include_directories(ImGuizmo PUBLIC 
-    ${imguizmo_SOURCE_DIR}
+    ${imguizmo_SOURCE_DIR}/src
     ${imgui_SOURCE_DIR}
 )
 target_link_libraries(ImGuizmo PUBLIC imgui) # 链接到我们自己创建的 ImGui 库
@@ -301,6 +302,8 @@ target_link_libraries(${PROJECT_NAME}
 
 # Copy Assets in build
 file(COPY "${CMAKE_SOURCE_DIR}/Assets" DESTINATION "${CMAKE_BINARY_DIR}")
+# Copy Resources in build
+file(COPY "${CMAKE_SOURCE_DIR}/Resources" DESTINATION "${CMAKE_BINARY_DIR}")
 
 # 自动将所有依赖的动态库复制到可执行文件所在的目录
 add_custom_command(

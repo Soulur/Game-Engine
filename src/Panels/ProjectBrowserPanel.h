@@ -9,9 +9,15 @@ namespace Mc {
 	// 文件类型图标
 	enum class FileIconType
 	{
-		Folder, // 文件夹
-		Code,
+		Folder,
+		Mesh,
+		Material,
+		Shader,
+		Scene,
 		Image,
+		Audio,
+		Code,
+		Zip,
 		Document,
 		Other
 	};
@@ -21,7 +27,6 @@ namespace Mc {
 	public:
 		ProjectBrowserPanel();
 
-		void DrawIcon(FileIconType type);
 		void RenderTopBar();
 		void RenderContentGrid();
 		void DisplayFileTree(const std::filesystem::path &path);
@@ -32,7 +37,20 @@ namespace Mc {
 		std::filesystem::path g_SelectedItem;
 		bool g_ShowFileIcons = true;
 
-		Ref<Texture2D> m_Folder;
+		std::vector<std::filesystem::path> m_BackStack;
+		std::vector<std::filesystem::path> m_ForwardStack;
+		char m_SearchBuffer[256] = "";
+
+		Ref<Texture2D> m_FolderIcon,
+			m_FolderMaxIcon, m_FolderZipMaxIcon,
+			m_CubeOutlineIcon, m_MaterialIcon, m_ShaderIcon, m_TextureIcon, m_SceneIcon,
+			m_DocumentIcon, m_AudioIcon,
+			m_CodeIcon,
+			m_OtherIcon,
+			m_ArrowLeftIcon, m_ArrowLeftSelectIcon,
+			m_ArrowRightIcon, m_ArrowRightSelectIcon,
+			m_NoSearchIcon
+			;
 	};
 
 }

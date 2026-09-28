@@ -94,8 +94,9 @@ namespace Mc
 	{
 		Entity entity = { m_Registry.create(), this };
 		entity.AddComponent<IDComponent>(uuid);
+		entity.AddComponent<VisibleComponent>();
 		entity.AddComponent<TransformComponent>();
-		auto& tag = entity.AddComponent<TagComponent>();
+		auto &tag = entity.AddComponent<TagComponent>();
 		tag.Tag = name.empty() ? "Entity" : name;
 
 		m_EntityMap[uuid] = entity;
@@ -229,9 +230,13 @@ namespace Mc
 		glm::mat4 cameraTransform;
 		{
 			auto view = m_Registry.view<TransformComponent, CameraComponent>();
-			for (auto entity : view)
+			for (auto entityID : view)
 			{
-				auto [transform, camera] = view.get<TransformComponent, CameraComponent>(entity);
+				Entity entity{entityID, this};
+				if (!entity.GetComponent<VisibleComponent>().Visible)
+					continue;
+
+				auto [transform, camera] = view.get<TransformComponent, CameraComponent>(entityID);
 				
 				if (camera.Primary)
 				{
@@ -248,49 +253,68 @@ namespace Mc
 
 			{
 				auto directionalLightsView = m_Registry.view<TransformComponent, DirectionalLightComponent>();
-				for (auto entity : directionalLightsView)
+				for (auto entityID : directionalLightsView)
 				{
-					auto [transform, light] = directionalLightsView.get<TransformComponent, DirectionalLightComponent>(entity);
-					ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entity);
-					Renderer3D::DrawDirectionalLight(transform.GetTransform(), light, shadow, (int)entity);
+					Entity entity{entityID, this};
+					if (!entity.GetComponent<VisibleComponent>().Visible)
+						continue;
+
+					auto [transform, light] = directionalLightsView.get<TransformComponent, DirectionalLightComponent>(entityID);
+					ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entityID);
+					Renderer3D::DrawDirectionalLight(transform.GetTransform(), light, shadow, (int)entityID);
 				}
 
 				auto pointLightsView = m_Registry.view<TransformComponent, PointLightComponent>();
-				for (auto entity : pointLightsView)
+				for (auto entityID : pointLightsView)
 				{
-					auto [transform, light] = pointLightsView.get<TransformComponent, PointLightComponent>(entity);
-					ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entity);
-					Renderer3D::DrawPointLight(transform.GetTransform(), light, shadow, (int)entity);
+					Entity entity{entityID, this};
+					if (!entity.GetComponent<VisibleComponent>().Visible)
+						continue;
+
+					auto [transform, light] = pointLightsView.get<TransformComponent, PointLightComponent>(entityID);
+					ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entityID);
+					Renderer3D::DrawPointLight(transform.GetTransform(), light, shadow, (int)entityID);
 				}
 
 				auto spotLightsView = m_Registry.view<TransformComponent, SpotLightComponent>();
-				for (auto entity : spotLightsView)
+				for (auto entityID : spotLightsView)
 				{
-					auto [transform, light] = spotLightsView.get<TransformComponent, SpotLightComponent>(entity);
-					ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entity);
-					Renderer3D::DrawSpotLight(transform.GetTransform(), light, shadow, (int)entity);
+					Entity entity{entityID, this};
+					if (!entity.GetComponent<VisibleComponent>().Visible)
+						continue;
+
+					auto [transform, light] = spotLightsView.get<TransformComponent, SpotLightComponent>(entityID);
+					ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entityID);
+					Renderer3D::DrawSpotLight(transform.GetTransform(), light, shadow, (int)entityID);
 				}
 			}
 
 			// Draw Hdr
 			{
 				auto view = m_Registry.view<HdrSkyboxComponent>();
-				for (auto entity : view)
-
+				for (auto entityID : view)
 				{
-					auto hdr = view.get<HdrSkyboxComponent>(entity);
-					Renderer3D::DrawHdrSkybox(hdr, (int)entity);
+					Entity entity{entityID, this};
+					if (!entity.GetComponent<VisibleComponent>().Visible)
+						continue;
+
+					auto hdr = view.get<HdrSkyboxComponent>(entityID);
+					Renderer3D::DrawHdrSkybox(hdr, (int)entityID);
 				}
 			}
 
 			// Draw sphere
 			{
 				auto view = m_Registry.view<TransformComponent, SphereRendererComponent>();
-				for (auto entity : view)
+				for (auto entityID : view)
 				{
-					auto [transform, sphere] = view.get<TransformComponent, SphereRendererComponent>(entity);
-					MaterialComponent *material = m_Registry.try_get<MaterialComponent>(entity);
-					Renderer3D::DrawSphere(transform.GetTransform(), sphere, material, (int)entity);
+					Entity entity{entityID, this};
+					if (!entity.GetComponent<VisibleComponent>().Visible)
+						continue;
+
+					auto [transform, sphere] = view.get<TransformComponent, SphereRendererComponent>(entityID);
+					MaterialComponent *material = m_Registry.try_get<MaterialComponent>(entityID);
+					Renderer3D::DrawSphere(transform.GetTransform(), sphere, material, (int)entityID);
 				}
 			}
 
@@ -300,6 +324,8 @@ namespace Mc
 				for (auto entityID : view)
 				{
 					Entity entity{entityID, this};
+					if (!entity.GetComponent<VisibleComponent>().Visible)
+						continue;
 
 					if (entity.GetComponent<HierarchyComponent>().Parent == 0)
 					{
@@ -307,6 +333,9 @@ namespace Mc
 						auto model = entity.GetComponent<ModelRendererComponent>();
 						for (Entity childEntity : entity.GetChildren())
 						{
+							if (!childEntity.GetComponent<VisibleComponent>().Visible)
+								continue;
+
 							glm::mat4 worldTransform = transform * childEntity.GetComponent<TransformComponent>().GetTransform();
 							MeshRendererComponent *mesh = m_Registry.try_get<MeshRendererComponent>(childEntity);
 							MaterialComponent *material = m_Registry.try_get<MaterialComponent>(childEntity);
@@ -407,49 +436,67 @@ namespace Mc
 
 		{
 			auto directionalLightsView = m_Registry.view<TransformComponent, DirectionalLightComponent>();
-			for (auto entity : directionalLightsView)
+			for (auto entityID : directionalLightsView)
 			{
-				auto [transform, light] = directionalLightsView.get<TransformComponent, DirectionalLightComponent>(entity);
-				ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entity);
-				Renderer3D::DrawDirectionalLight(transform.GetTransform(), light, shadow, (int)entity);
+				Entity entity{entityID, this};
+				if (!entity.GetComponent<VisibleComponent>().Visible) 
+					continue;
+
+				auto [transform, light] = directionalLightsView.get<TransformComponent, DirectionalLightComponent>(entityID);
+				ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entityID);
+				Renderer3D::DrawDirectionalLight(transform.GetTransform(), light, shadow, (int)entityID);
 			}
 
 			auto pointLightsView = m_Registry.view<TransformComponent, PointLightComponent>();
-			for (auto entity : pointLightsView)
+			for (auto entityID : pointLightsView)
 			{
-				auto [transform, light] = pointLightsView.get<TransformComponent, PointLightComponent>(entity);
-				ShadowComponent* shadow = m_Registry.try_get<ShadowComponent>(entity);
-				Renderer3D::DrawPointLight(transform.GetTransform(), light, shadow, (int)entity);
+				Entity entity{entityID, this};
+				if (!entity.GetComponent<VisibleComponent>().Visible)
+					continue;
+
+				auto [transform, light] = pointLightsView.get<TransformComponent, PointLightComponent>(entityID);
+				ShadowComponent* shadow = m_Registry.try_get<ShadowComponent>(entityID);
+				Renderer3D::DrawPointLight(transform.GetTransform(), light, shadow, (int)entityID);
 			}
 
 			auto spotLightsView = m_Registry.view<TransformComponent, SpotLightComponent>();
-			for (auto entity : spotLightsView)
+			for (auto entityID : spotLightsView)
 			{
-				auto [transform, light] = spotLightsView.get<TransformComponent, SpotLightComponent>(entity);
-				ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entity);
-				Renderer3D::DrawSpotLight(transform.GetTransform(), light, shadow, (int)entity);
+				Entity entity{entityID, this};
+				if (!entity.GetComponent<VisibleComponent>().Visible)
+					continue;
+
+				auto [transform, light] = spotLightsView.get<TransformComponent, SpotLightComponent>(entityID);
+				ShadowComponent *shadow = m_Registry.try_get<ShadowComponent>(entityID);
+				Renderer3D::DrawSpotLight(transform.GetTransform(), light, shadow, (int)entityID);
 			}
 		}
 
 		// Draw Hdr
 		{
 			auto view = m_Registry.view<HdrSkyboxComponent>();
-			for (auto entity : view)
-
+			for (auto entityID : view)
 			{
-				auto hdr = view.get<HdrSkyboxComponent>(entity);
-				Renderer3D::DrawHdrSkybox(hdr, (int)entity);
+				Entity entity{entityID, this};
+				if (!entity.GetComponent<VisibleComponent>().Visible) continue;
+
+				auto hdr = view.get<HdrSkyboxComponent>(entityID);
+				Renderer3D::DrawHdrSkybox(hdr, (int)entityID);
 			}
 		}
 
 		// Draw sphere
 		{
 			auto view = m_Registry.view<TransformComponent, SphereRendererComponent>();
-			for (auto entity : view)
+			for (auto entityID : view)
 			{
-				auto [transform, sphere] = view.get<TransformComponent, SphereRendererComponent>(entity);
-				MaterialComponent *material = m_Registry.try_get<MaterialComponent>(entity);
-				Renderer3D::DrawSphere(transform.GetTransform(), sphere, material, (int)entity);
+				Entity entity{entityID, this};
+				if (!entity.GetComponent<VisibleComponent>().Visible)
+					continue;
+
+				auto [transform, sphere] = view.get<TransformComponent, SphereRendererComponent>(entityID);
+				MaterialComponent *material = m_Registry.try_get<MaterialComponent>(entityID);
+				Renderer3D::DrawSphere(transform.GetTransform(), sphere, material, (int)entityID);
 			}
 		}
 
@@ -459,6 +506,8 @@ namespace Mc
 			for (auto entityID : view)
 			{
 				Entity entity{entityID, this};
+				if (!entity.GetComponent<VisibleComponent>().Visible)
+					continue;
 
 				if (entity.GetComponent<HierarchyComponent>().Parent == 0)
 				{
@@ -466,6 +515,9 @@ namespace Mc
 					auto model = entity.GetComponent<ModelRendererComponent>();
 					for (Entity childEntity : entity.GetChildren())
 					{
+						if (!childEntity.GetComponent<VisibleComponent>().Visible)
+							continue;
+
 						glm::mat4 worldTransform = transform * childEntity.GetComponent<TransformComponent>().GetTransform();
 						MeshRendererComponent *mesh = m_Registry.try_get<MeshRendererComponent>(childEntity);
 						MaterialComponent *material = m_Registry.try_get<MaterialComponent>(childEntity);
@@ -481,9 +533,9 @@ namespace Mc
 	void Scene::NewScene()
 	{
 		{
-			auto uuid = UUID();
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
+			entity.AddComponent<VisibleComponent>();
 
 			auto &hdrSkybox = entity.AddComponent<HdrSkyboxComponent>();
 			hdrSkybox.Path = "Assets/textures/hdr/citrus_orchard_road_puresky_4k.hdr";
@@ -491,13 +543,13 @@ namespace Mc
 			auto &tag = entity.AddComponent<TagComponent>();
 			tag.Tag = "Hdr Skybox";
 
-			m_EntityMap[uuid] = entity;
+			m_EntityMap[entity.GetUUID()] = entity;
 		}
 
 		{
-			auto uuid = UUID();
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
+			entity.AddComponent<VisibleComponent>();
 			auto &transform = entity.AddComponent<TransformComponent>();
 			transform.Translation = glm::vec3(-9.0f, 0.0f, -6.0f);
 			transform.Rotation = glm::vec3(glm::radians(-11.0f), glm::radians(-140.0f), 0.0f);
@@ -507,7 +559,7 @@ namespace Mc
 			auto &tag = entity.AddComponent<TagComponent>();
 			tag.Tag = "Camera";
 
-			m_EntityMap[uuid] = entity;
+			m_EntityMap[entity.GetUUID()] = entity;
 		}
 
 		/*
@@ -620,7 +672,7 @@ namespace Mc
 		}
 		*/
 
-		// /*
+		/*
 		{
 			auto uuid = UUID();
 			Entity entity = {m_Registry.create(), this};
@@ -673,9 +725,9 @@ namespace Mc
 
 		// /*
 		{
-			auto uuid = UUID();
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
+			entity.AddComponent<VisibleComponent>();
 			auto &transform = entity.AddComponent<TransformComponent>();
 			transform.Translation = glm::vec3(1.0f, -4.0f, 0.0f);
 			transform.Scale = glm::vec3(0.01f);
@@ -731,17 +783,17 @@ namespace Mc
 				auto &tag = entity.AddComponent<TagComponent>();
 				tag.Tag = "obj Model 3";
 
-				m_EntityMap[uuid] = entity;
+				m_EntityMap[entity.GetUUID()] = entity;
 			}
 		}
 		// */
 
 		// /*
 		{
-			auto uuid = UUID();
 			Entity entity = {m_Registry.create(), this};
 			entity.AddComponent<IDComponent>();
 			auto &transform = entity.AddComponent<TransformComponent>();
+			entity.AddComponent<VisibleComponent>();
 			transform.Translation = glm::vec3(-1.0f, -4.0f, 0.0f);
 			transform.Scale = glm::vec3(0.01f);
 			// transform.Rotation = glm::vec3(glm::radians(-90.0f), 0.0f, 0.0f);
@@ -775,7 +827,7 @@ namespace Mc
 				auto &tag = entity.AddComponent<TagComponent>();
 				tag.Tag = "obj Model 4";
 
-				m_EntityMap[uuid] = entity;
+				m_EntityMap[entity.GetUUID()] = entity;
 			}
 		}
 		// */
@@ -796,6 +848,7 @@ namespace Mc
 		}
 		*/
 
+		/*
 		{
 			auto uuid = UUID();
 			Entity entity = {m_Registry.create(), this};
@@ -810,6 +863,7 @@ namespace Mc
 
 			m_EntityMap[uuid] = entity;
 		}
+		*/
 
 		// {
 		// 	auto uuid = UUID();
@@ -826,6 +880,7 @@ namespace Mc
 		// 	m_EntityMap[uuid] = entity;
 		// }
 
+		/*
 		{
 			auto uuid = UUID();
 			Entity entity = {m_Registry.create(), this};
@@ -833,7 +888,6 @@ namespace Mc
 			auto &transform = entity.AddComponent<TransformComponent>();
 			transform.Translation = glm::vec3(6.0f, 4.0f, 4.0f);
 			transform.Rotation = glm::vec3(-0.5f, 1.0f, 0.0f);
-			
 
 			auto& light = entity.AddComponent<SpotLightComponent>();
 			light.Intensity = 10.0f;
@@ -843,6 +897,7 @@ namespace Mc
 			tag.Tag = "Spot Light";
 			m_EntityMap[uuid] = entity;
 		}
+		*/
 	}
 
 	template <typename T>
@@ -858,6 +913,11 @@ namespace Mc
 
 	template <>
 	void Scene::OnComponentAdded<TagComponent>(Entity entity, TagComponent &component)
+	{
+	}
+
+	template <>
+	void Scene::OnComponentAdded<VisibleComponent>(Entity entity, VisibleComponent &component)
 	{
 	}
 

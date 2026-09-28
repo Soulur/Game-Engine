@@ -2,6 +2,7 @@
 #include "src/Scene/Components.h"
 
 #include "src/Renderer/Manager/ModelManager.h"
+#include "src/Renderer/Manager/TextureManager.h"
 // #include "src/Scripting/ScriptEngine.h"
 
 
@@ -100,6 +101,19 @@ namespace Mc {
 	{
 		m_Context = context;
 		m_SelectionContext = {};
+
+		m_PreviewSize = 300.0f;
+		m_ShowMaterialEditor = false;
+		FramebufferSpecification fbSpec;
+		fbSpec.Attachments = {FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::RED_INTEGER, FramebufferTextureFormat::DEPTH24STENCIL8};
+		fbSpec.Width = m_PreviewSize;
+		fbSpec.Height = m_PreviewSize;
+		m_PreviewFramebuffer = Framebuffer::Create(fbSpec);
+		m_PreviewMaterialCamera = EditorCamera(30.0f, 1.778f, 0.1f, 100.0f);
+
+		m_DefaultTexture = Texture2D::Create("Resources/Textures/Default-texture.png");
+		m_VisibleIcon = Texture2D::Create("Resources/Icons/eye-outline.png");
+		m_VisibleOffIcon = Texture2D::Create("Resources/Icons/eye-off-outline.png");
 	}
 
 	void SceneHierarchyPanel::OnImGuiRender()
@@ -108,74 +122,52 @@ namespace Mc {
 
 		if (m_Context)
 		{
-			auto hdrView = m_Context->m_Registry.view<HdrSkyboxComponent>();
-			if (!hdrView.empty())
-			{
-				if (ImGui::TreeNodeEx("Environment", ImGuiTreeNodeFlags_DefaultOpen))
-				{
-					for (auto entityID : hdrView)
-						DrawEntityNode({entityID, m_Context.get()});
-					ImGui::TreePop();
-				}
-			}
-
-			if (ImGui::TreeNodeEx("Lights", ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				auto Directionalview = m_Context->m_Registry.view<DirectionalLightComponent>();
-				for (auto entityID : Directionalview)
-					DrawEntityNode({entityID, m_Context.get()});
-
-				auto pointView = m_Context->m_Registry.view<PointLightComponent>();
-				for (auto entityID : pointView)
-					DrawEntityNode({entityID, m_Context.get()});
-
-				auto spotView = m_Context->m_Registry.view<SpotLightComponent>();
-				for (auto entityID : spotView)
-					DrawEntityNode({entityID, m_Context.get()});
-
-				ImGui::TreePop();
-			}
-
-			if (ImGui::TreeNodeEx("Spheres", ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				auto view = m_Context->m_Registry.view<SphereRendererComponent>();
-				for (auto entityID : view)
-				{
-					Entity entity{entityID, m_Context.get()};
-					DrawEntityNode(entity);
-				}
-				ImGui::TreePop();
-			}
-
-			if (ImGui::TreeNodeEx("Models", ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				auto view = m_Context->m_Registry.view<ModelRendererComponent>();
-				for (auto entityID : view)
-				{
-					Entity entity{entityID, m_Context.get()};
-					if (entity.GetComponent<HierarchyComponent>().Parent == 0)
-					{
-						DrawEntityNode(entity);
-					}
-				}
-				ImGui::TreePop();
-			}
-
-			if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
-				m_SelectionContext = {};
+			ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_Reorderable |
+										   ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY;
+			// ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
+			// 						ImGuiTableFlags_Hideable | ImGuiTableFlags_BordersInnerV |
+			// 						ImGuiTableFlags_ScrollY;
 
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
 			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
 			ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 4.0f);
 
-			if (ImGui::BeginPopupContextWindow(0, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+			if (ImGui::BeginTable("HierarchyTable", 3, flags))
 			{
-				if (ImGui::MenuItem("Create Empty Entity"))
-					m_Context->CreateEntity("Empty Entity");
-				ImGui::EndPopup();
-			}
+				ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+				ImGui::TableSetupColumn("Visibility", ImGuiTableColumnFlags_WidthFixed, 30.0f);
+				ImGui::TableHeadersRow();
 
-			ImGui::PopStyleVar(3);
+				auto view = m_Context->m_Registry.view<entt::entity>();
+				for (auto entityID : view)
+				{
+					Entity entity{entityID, m_Context.get()};
+
+					bool isRoot = true;
+					if (entity.HasComponent<HierarchyComponent>())
+						if (entity.GetComponent<HierarchyComponent>().Parent != 0)
+							isRoot = false;
+
+					if (isRoot)
+						DrawEntityNode(entity);
+				}
+
+				{
+					if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
+						m_SelectionContext = {};
+
+					if (ImGui::BeginPopupContextWindow(0, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+					{
+						if (ImGui::MenuItem("Create Empty Entity"))
+							m_Context->CreateEntity("Empty Entity");
+						ImGui::EndPopup();
+					}
+				}
+
+				ImGui::EndTable();
+				ImGui::PopStyleVar(3);
+			}
 		}
 		ImGui::End();
 
@@ -195,64 +187,134 @@ namespace Mc {
 		m_SelectionContext = entity;
 	}
 
-	void SceneHierarchyPanel::DrawEntityNode(Entity entity)
+	bool SceneHierarchyPanel::IsParentVisible(Entity entity)
 	{
+		if (!entity || !entity.HasComponent<HierarchyComponent>())
+			return true;
+
+		UUID parentUUID = entity.GetComponent<HierarchyComponent>().Parent;
+		if (parentUUID == 0)
+			return true;
+
+		Entity parent = m_Context->GetEntityByUUID(parentUUID);
+
+		if (parent)
+		{
+			if (parent.HasComponent<VisibleComponent>())
+			{
+				if (!parent.GetComponent<VisibleComponent>().Visible)
+					return false;
+			}
+			return IsParentVisible(parent);
+		}
+
+		return true;
+	}
+
+	void SceneHierarchyPanel::DrawEntityNode(Entity entity)
+    {
 		auto& tag = entity.GetComponent<TagComponent>().Tag;
+		bool isSelected = (m_SelectionContext == entity);
+
+		float lineHeight = ImGui::GetTextLineHeightWithSpacing() + 2.0f;
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, lineHeight);
+		ImGui::TableSetColumnIndex(0);
+
+		ImGui::PushID((int)(uint32_t)entity);
+		ImGuiID nodeID = ImGui::GetID((void *)(uint64_t)(uint32_t)entity);
 
 		bool hasChildren = false;
 		if (entity.HasComponent<HierarchyComponent>())
-		{
 			hasChildren = !entity.GetComponent<HierarchyComponent>().Children.empty();
-		}
 
-		ImGuiTreeNodeFlags flags = ((m_SelectionContext == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
-		flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
-		if (!hasChildren) flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-		
-		bool opened = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, tag.c_str());
-		if (ImGui::IsItemClicked())
-		{
+		ImGuiTreeNodeFlags treeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+		if (!hasChildren)
+			treeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+
+		ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0, 0, 0, 0));
+		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0, 0, 0, 0));
+		ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0, 0, 0, 0));
+
+		bool opened = ImGui::TreeNodeEx((void *)(uint64_t)(uint32_t)entity, treeFlags, "");
+
+		ImGui::PopStyleColor(3);
+		ImGui::SameLine();
+
+		ImGuiSelectableFlags selFlags = ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap;
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ImGui::GetStyle().FramePadding.x, 0.0f));
+		if (ImGui::Selectable(tag.c_str(), isSelected, selFlags, ImVec2(0, lineHeight)))
 			m_SelectionContext = entity;
+		ImGui::PopStyleVar();
+
+		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+		{
+			ImGuiStorage *storage = ImGui::GetStateStorage();
+			bool *p_open = storage->GetBoolRef(nodeID);
+			*p_open = !*p_open;
 		}
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 4.0f);
-
-		bool entityDeleted = false;
 		if (ImGui::BeginPopupContextItem())
 		{
 			if (ImGui::MenuItem("Delete Entity"))
-				entityDeleted = true;
-
+				m_Context->DestroyEntity(entity);
 			ImGui::EndPopup();
 		}
-
 		ImGui::PopStyleVar(3);
 
-		if (opened)
+		if (ImGui::TableSetColumnIndex(1))
 		{
-			if (hasChildren)
-			{
-				// 递归调用自身绘制子 Entity
-				for (Entity childEntity : entity.GetChildren())
-				{
-					DrawEntityNode(childEntity);
-				}
-			}
+			ImGui::AlignTextToFramePadding();
+			std::string typeString = "Entity";
 
-			if (hasChildren) // 只有非 Leaf 节点才需要 Pop
+			if (entity.HasComponent<MeshRendererComponent>())
+				typeString = "Mesh";
+			else if (entity.HasComponent<DirectionalLightComponent>() || entity.HasComponent<PointLightComponent>() || entity.HasComponent<SpotLightComponent>())
+				typeString = "Light";
+			else if (entity.HasComponent<ModelRendererComponent>())
+				typeString = "Model";
+			else if (entity.HasComponent<SphereRendererComponent>())
+				typeString = "Sphere";
+			else if (entity.HasComponent<CameraComponent>())
+				typeString = "Camera";
+			else if (entity.HasComponent<HdrSkyboxComponent>())
+				typeString = "Hdr";
+
+			ImGui::TextDisabled("%s", typeString.c_str());
+		}
+		if (ImGui::TableSetColumnIndex(2))
+		{
+			ImGui::AlignTextToFramePadding();
+
+			
+			if (entity.HasComponent<VisibleComponent>())
 			{
-				ImGui::TreePop();
+				bool &selfVisible = entity.GetComponent<VisibleComponent>().Visible;
+				bool parentVisible = IsParentVisible(entity);
+
+				bool effectivelyVisible = selfVisible && parentVisible;
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+
+				ImTextureID icon = effectivelyVisible ? m_VisibleIcon->GetRendererID() : m_VisibleOffIcon->GetRendererID();
+
+				if (ImGui::ImageButton("##Visible", icon, ImVec2(lineHeight - 5.0f, lineHeight - 5.0f), ImVec2(0, 1), ImVec2(1, 0)))
+				{
+					selfVisible = !selfVisible;
+				}
+
+				ImGui::PopStyleColor();
 			}
-			// ImGui::TreePop();
 		}
 
-		if (entityDeleted)
+		ImGui::PopID();
+
+		if (opened && hasChildren)
 		{
-			m_Context->DestroyEntity(entity);
-			if (m_SelectionContext == entity)
-				m_SelectionContext = {};
+			for (Entity childEntity : entity.GetChildren())
+				DrawEntityNode(childEntity);
+			ImGui::TreePop();
 		}
 	}
 
@@ -406,6 +468,9 @@ namespace Mc {
 
 		if (ImGui::Button("Add Component"))
 			ImGui::OpenPopup("AddComponent");
+
+		ImGui::SameLine();
+		if (ImGui::Button("Vis")){}
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 10.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));
@@ -732,8 +797,58 @@ namespace Mc {
 			} 
 		});
 
-		DrawComponent<MaterialComponent>("PBR Material", entity, [](auto &component){ 
+		DrawComponent<MaterialComponent>("PBR Material", entity, [this](auto &component){ 
 			ImGui::Text("PBR Material");
+
+			{
+				const char *buttonText = "Preview Material";
+				ImVec2 textSize = ImGui::CalcTextSize(buttonText);
+				float width = textSize.x + 10.0f;
+				ImGui::SameLine(ImGui::GetContentRegionAvail().x - width);
+				ImGui::Checkbox("Preview Material", &m_ShowMaterialEditor);
+
+				if (m_ShowMaterialEditor)
+				{
+					ImVec2 propsPos = ImGui::GetWindowPos();
+					ImVec2 propsSize = ImGui::GetWindowSize();
+
+					ImVec2 nextPos = ImVec2(propsPos.x + propsSize.x + 5.0f, propsPos.y);
+
+					ImGui::SetNextWindowPos(nextPos, ImGuiCond_Always);
+					ImGui::SetNextWindowSize(ImVec2(m_PreviewSize, m_PreviewSize), ImGuiCond_Always);
+
+					ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove;
+
+					if (ImGui::Begin("Preview Material", &m_ShowMaterialEditor, flags))
+					{
+						float ts = ImGui::GetIO().DeltaTime;
+
+						m_PreviewMaterialCamera.SetViewportSize(m_PreviewSize, m_PreviewSize);
+
+						m_PreviewFramebuffer->Bind();
+						Renderer::SetClearColor(glm::vec4(0.3f, 0.3f, 0.3f, 1.0f));
+						Renderer::Clear();
+						m_PreviewMaterialCamera.OnPreviewMaterialUpdate(ts);
+						Renderer3D::BeginScene(m_PreviewMaterialCamera);
+
+						Renderer3D::DrawDirectionalLight(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(1.2f, 1.2f, 1.2f));
+						glm::mat4 sphereTransform = glm::mat4(1.0f);
+						sphereTransform *= glm::scale(glm::mat4(1.0f), glm::vec3(1.6f));
+						Renderer3D::DrawSphere(sphereTransform, component, -1);
+
+						Renderer3D::EndScene();
+						m_PreviewFramebuffer->UnBind();
+
+						uint32_t textureID = m_PreviewFramebuffer->GetColorAttachmentRendererID();
+						ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+						ImGui::Image((void *)(uintptr_t)textureID, viewportSize, {0, 1}, {1, 0});
+					}
+					ImGui::End();
+				}
+			}
+
+			ImGui::Separator();
+			ImGui::Spacing();
 
 			ImGui::ColorEdit3("Albedo", glm::value_ptr(component.Albedo));
 			ImGui::DragFloat("Roughness", &component.Roughness, 0.1f, 0.0f, 1.0f);
@@ -741,7 +856,7 @@ namespace Mc {
 			ImGui::DragFloat("AO", &component.Ao, 0.1f, 0.0f, 1.0f);
 			ImGui::ColorEdit3("Emissive", glm::value_ptr(component.Emissive));
 
-			std::vector<std::string> arr = {"AlbedoMap", "NormalMap", "MetallicMap", "RoughnessMap", "AmbientOcclusionMap", "EmissiveMap", "HeightMap"};
+			std::vector<std::string> arr = {"Albedo", "Normal", "Metallic", "Roughness", "AO", "Emissive", "Height"};
 
 			std::string *mapPointers[] = {
 				&component.AlbedoMap,
@@ -753,38 +868,43 @@ namespace Mc {
 				&component.HeightMap
 			};
 			ImGui::Text("Texture Maps");
+			ImGui::Separator();
+
+			float windowVisibleX2 = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
+			float itemWidth = 100.0f;
+			float itemSpacing = 10.0f;
 
 			for (int i = 0; i < arr.size(); i++)
 			{
 				ImGui::PushID(i);
+				ImGui::BeginGroup();
 
 				std::string *currentMapPath = mapPointers[i];
 
-				// 1. 显示贴图名称
-				ImGui::Text(arr[i].c_str());
-
-				std::string buttonLabel;
-				if (!currentMapPath->empty())
-				{
-					size_t lastSlash = currentMapPath->find_last_of("/\\");
-					buttonLabel = (lastSlash == std::string::npos) ? *currentMapPath : currentMapPath->substr(lastSlash + 1);
-				}
-				else
-				{
-					buttonLabel = "Click to load " + arr[i];
-				}
-
-				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-				if (ImGui::Button(buttonLabel.c_str(), ImVec2(ImGui::GetContentRegionAvail().x * 0.8f, 35)))
-				{
-				}
-				ImGui::PopStyleColor();
-
-				ImGui::SameLine();
-				if (ImGui::Button("X", ImVec2(ImGui::GetContentRegionAvail().x, 35)))
+				if (ImGui::Button("X", ImVec2(20, 20)))
 				{
 					*currentMapPath = "";
 				}
+
+				ImTextureID texID = !currentMapPath->empty() 
+				? (ImTextureID)TextureManager::Get().GetTexture(*currentMapPath)->GetRendererID() 
+				: (ImTextureID)m_DefaultTexture->GetRendererID();
+
+				float itemWidth = 100.0f;
+				float itemHeight = 100.0f;
+				if (ImGui::ImageButton(("##" + arr[i]).c_str(), texID, ImVec2(itemWidth, itemHeight),
+									   ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1)))
+				{
+				}
+
+				ImGui::Text(arr[i].c_str());
+				ImGui::EndGroup();
+
+				float lastItemX2 = ImGui::GetItemRectMax().x;
+				float nextItemX2 = lastItemX2 + itemSpacing + itemWidth;
+				if (i + 1 < arr.size() && nextItemX2 < windowVisibleX2)
+					ImGui::SameLine(0.0f, itemSpacing);
+
 				ImGui::PopID();
 			}
 			
